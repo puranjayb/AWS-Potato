@@ -7,6 +7,9 @@ from aws_cdk import (
     aws_rds as rds,
     aws_ec2 as ec2,
     aws_iam as iam,
+    aws_apigateway as apigw,
+    aws_s3 as s3,
+    CfnOutput,
     SecretValue,
 )
 from constructs import Construct
@@ -32,6 +35,17 @@ class BackendStack(Stack):
                     cidr_mask=24
                 )
             ]
+        )
+
+        # Create S3 bucket for file storage
+        file_storage_bucket = s3.Bucket(
+            self, "FileStorageBucket",
+            bucket_name=None,  # CDK will generate a unique name
+            versioned=True,
+            encryption=s3.BucketEncryption.S3_MANAGED,
+            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy=RemovalPolicy.DESTROY,
+            auto_delete_objects=True
         )
 
         # Create RDS instance
@@ -122,8 +136,55 @@ class BackendStack(Stack):
             )
         )
 
+        # Create Lambda function for project management
+        projects_handler = _lambda.Function(
+            self, "ProjectsHandler",
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            handler="projects.handler",
+            code=_lambda.Code.from_asset("lambda/projects"),
+            timeout=Duration.seconds(30),
+            environment={
+                "DB_SECRET_ARN": database.secret.secret_arn,
+                "DB_NAME": "authdb"
+            },
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
+            )
+        )
+
+        # Create Lambda function for file upload
+        file_upload_handler = _lambda.Function(
+            self, "FileUploadHandler",
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            handler="file_upload.handler",
+            code=_lambda.Code.from_asset("lambda/file-upload"),
+            timeout=Duration.seconds(60),
+            memory_size=512,
+            environment={
+                "DB_SECRET_ARN": database.secret.secret_arn,
+                "DB_NAME": "authdb",
+                "S3_BUCKET_NAME": file_storage_bucket.bucket_name
+            },
+            vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(
+                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
+            )
+        )
+
+        # Update auth handler environment with projects Lambda ARN
+        auth_handler.add_environment("PROJECTS_LAMBDA_ARN", projects_handler.function_arn)
+
+        # Grant auth Lambda permission to invoke projects Lambda
+        projects_handler.grant_invoke(auth_handler)
+
         # Grant Lambda access to RDS secret
         database.secret.grant_read(auth_handler)
+        database.secret.grant_read(projects_handler)
+        database.secret.grant_read(file_upload_handler)
+
+        # Grant file upload Lambda access to S3 bucket
+        file_storage_bucket.grant_read_write(file_upload_handler)
 
         # Grant Lambda access to Cognito
         auth_handler.add_to_role_policy(
@@ -138,4 +199,120 @@ class BackendStack(Stack):
                 ],
                 resources=[user_pool.user_pool_arn]
             )
+        )
+
+        # Create API Gateway
+        api = apigw.RestApi(
+            self, "PotatoAPI",
+            rest_api_name="potato-api",
+            description="API for AWS-Potato application",
+            default_cors_preflight_options=apigw.CorsOptions(
+                allow_origins=apigw.Cors.ALL_ORIGINS,
+                allow_methods=apigw.Cors.ALL_METHODS,
+                allow_headers=["Content-Type", "Authorization", "X-Amz-Date", 
+                             "X-Api-Key", "X-Amz-Security-Token"]
+            )
+        )
+
+        # Create Cognito Authorizer
+        auth = apigw.CognitoUserPoolsAuthorizer(
+            self, "PotatoAuthorizer",
+            cognito_user_pools=[user_pool]
+        )
+
+        # Create API resources and methods
+        auth_api = api.root.add_resource("auth")
+        projects_api = api.root.add_resource("projects")
+        files_api = api.root.add_resource("files")
+
+        # Add methods to auth resource
+        auth_api.add_method(
+            "POST",
+            apigw.LambdaIntegration(
+                auth_handler,
+                proxy=True,
+                integration_responses=[{
+                    'statusCode': '200',
+                    'responseParameters': {
+                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                    }
+                }]
+            ),
+            method_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': True
+                }
+            }]
+        )
+
+        # Add methods to projects resource
+        projects_api.add_method(
+            "POST",
+            apigw.LambdaIntegration(
+                projects_handler,
+                proxy=True,
+                integration_responses=[{
+                    'statusCode': '200',
+                    'responseParameters': {
+                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                    }
+                }]
+            ),
+            authorizer=auth,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            method_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': True
+                }
+            }]
+        )
+
+        # Add methods to files resource
+        files_api.add_method(
+            "POST",
+            apigw.LambdaIntegration(
+                file_upload_handler,
+                proxy=True,
+                integration_responses=[{
+                    'statusCode': '200',
+                    'responseParameters': {
+                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                    }
+                }]
+            ),
+            authorizer=auth,
+            authorization_type=apigw.AuthorizationType.COGNITO,
+            method_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': True
+                }
+            }]
+        )
+
+        # Add CloudFormation outputs
+        CfnOutput(
+            self, "UserPoolId",
+            value=user_pool.user_pool_id,
+            description="Cognito User Pool ID"
+        )
+
+        CfnOutput(
+            self, "UserPoolClientId",
+            value=client.user_pool_client_id,
+            description="Cognito User Pool Client ID"
+        )
+
+        CfnOutput(
+            self, "ApiUrl",
+            value=api.url,
+            description="API Gateway URL"
+        )
+
+        CfnOutput(
+            self, "S3BucketName",
+            value=file_storage_bucket.bucket_name,
+            description="S3 Bucket for file storage"
         )

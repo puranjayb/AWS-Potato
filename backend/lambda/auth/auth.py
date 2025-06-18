@@ -50,6 +50,32 @@ def create_user_in_db(username, email):
     finally:
         conn.close()
 
+def create_user_project(username, email, cognito_sub):
+    """Create a project for the user using the projects Lambda"""
+    lambda_client = boto3.client('lambda')
+    try:
+        payload = {
+            'body': json.dumps({
+                'action': 'create_project',
+                'user_id': username,
+                'email': email,
+                'cognito_sub': cognito_sub
+            })
+        }
+        
+        response = lambda_client.invoke(
+            FunctionName=os.environ['PROJECTS_LAMBDA_ARN'],
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
+        )
+        
+        response_payload = json.loads(response['Payload'].read().decode('utf-8'))
+        return response_payload
+        
+    except Exception as e:
+        print(f"Error creating user project: {str(e)}")
+        raise e
+
 def handler(event, context):
     """Main Lambda handler"""
     try:
@@ -87,11 +113,22 @@ def handler(event, context):
             # Create user record in RDS
             create_user_in_db(username, email)
             
+            # Get Cognito user details
+            user_details = cognito.admin_get_user(
+                UserPoolId=os.environ['USER_POOL_ID'],
+                Username=username
+            )
+            cognito_sub = next((attr['Value'] for attr in user_details['UserAttributes'] if attr['Name'] == 'sub'), None)
+            
+            # Create user project
+            project_response = create_user_project(username, email, cognito_sub)
+            
             return {
                 'statusCode': 200,
                 'body': json.dumps({
                     'message': 'User created successfully',
-                    'username': username
+                    'username': username,
+                    'project': json.loads(project_response.get('body', '{}'))
                 })
             }
             
@@ -110,11 +147,24 @@ def handler(event, context):
                 }
             )
             
+            # Get user details
+            user_details = cognito.admin_get_user(
+                UserPoolId=os.environ['USER_POOL_ID'],
+                Username=username
+            )
+            
+            email = next((attr['Value'] for attr in user_details['UserAttributes'] if attr['Name'] == 'email'), None)
+            cognito_sub = next((attr['Value'] for attr in user_details['UserAttributes'] if attr['Name'] == 'sub'), None)
+            
+            # Create or update user project
+            project_response = create_user_project(username, email, cognito_sub)
+            
             return {
                 'statusCode': 200,
                 'body': json.dumps({
                     'message': 'Authentication successful',
-                    'tokens': auth_response['AuthenticationResult']
+                    'tokens': auth_response['AuthenticationResult'],
+                    'project': json.loads(project_response.get('body', '{}'))
                 })
             }
             

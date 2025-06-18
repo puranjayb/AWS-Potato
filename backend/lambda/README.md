@@ -11,6 +11,14 @@ lambda/
 │   ├── README.md         # Auth function documentation
 │   ├── auth.py           # Auth function code
 │   └── requirements.txt   # Auth function dependencies
+├── projects/              # Project management Lambda function
+│   ├── README.md         # Projects function documentation
+│   ├── projects.py       # Projects function code
+│   └── requirements.txt   # Projects function dependencies
+├── file-upload/           # File upload Lambda function
+│   ├── README.md         # File upload function documentation
+│   ├── file_upload.py    # File upload function code
+│   └── requirements.txt   # File upload function dependencies
 └── [future_lambdas]/     # Additional Lambda functions will be added here
 ```
 
@@ -20,6 +28,20 @@ lambda/
 - Handles user authentication and registration
 - Integrates with Amazon Cognito and RDS
 - See `auth/README.md` for detailed documentation
+
+### 2. Projects Lambda (`/projects`)
+- Manages user projects and details
+- Tracks user-project relationships
+- Protected by Cognito authentication
+- See `projects/README.md` for detailed documentation
+
+### 3. File Upload Lambda (`/files`)
+- Handles file uploads to S3
+- Stores file metadata in RDS
+- User-based access control
+- Project-based file organization
+- Protected by Cognito authentication
+- See `file-upload/README.md` for detailed documentation
 
 ## Development Guidelines
 
