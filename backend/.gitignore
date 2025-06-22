@@ -11,3 +11,6 @@ cdk.out
 
 uv.lock
 .python-version
+
+preDeploy.yaml
+
