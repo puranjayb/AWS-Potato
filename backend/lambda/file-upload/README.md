@@ -16,13 +16,17 @@ Authorization: Bearer <IdToken>
 
 ## Features
 
-- File upload to S3 with encryption
-- File metadata storage in RDS
+- **Two upload methods:**
+  - Base64 encoded file upload (up to 6MB)
+  - Presigned URL upload (unlimited size, direct to S3)
+- File upload to S3 with AES256 encryption
+- File metadata storage in RDS PostgreSQL
 - User-based file access control
 - Project-based file organization
 - File listing and retrieval
-- Base64 encoded file content support
+- Presigned URL generation for downloads
 - Automatic file organization by date
+- Upload status tracking (pending/uploaded)
 - Stores user email from Cognito claims
 
 ## Environment Variables
@@ -35,7 +39,7 @@ The function expects the following environment variables:
 
 ## API Endpoints
 
-### Upload File
+### Upload File (Base64 - Limited to 6MB)
 ```json
 POST /files
 Authorization: Bearer <IdToken>
@@ -55,6 +59,76 @@ Response:
     "file_size": 1024,
     "s3_key": "user123/2024/03/20/file-uuid_document.pdf",
     "user_email": "user@example.com"
+}
+```
+
+### Generate Presigned Upload URL (Recommended for large files)
+```json
+POST /files
+Authorization: Bearer <IdToken>
+{
+    "action": "generate_upload_url",
+    "filename": "large-document.pdf",
+    "content_type": "application/pdf",
+    "project_id": "project-uuid",  // optional
+    "expiration": 3600  // optional, default 1 hour
+}
+
+Response:
+{
+    "upload_url": "https://bucket.s3.amazonaws.com/user123/2024/03/20/uuid_large-document.pdf?X-Amz-...",
+    "file_id": "file-uuid",
+    "s3_key": "user123/2024/03/20/uuid_large-document.pdf",
+    "expires_in": 3600,
+    "method": "PUT"
+}
+
+// Frontend then uploads directly to S3:
+PUT https://bucket.s3.amazonaws.com/user123/2024/03/20/uuid_large-document.pdf?X-Amz-...
+Content-Type: application/pdf
+[Binary file data]
+```
+
+### Confirm Upload (After using presigned URL)
+```json
+POST /files
+Authorization: Bearer <IdToken>
+{
+    "action": "confirm_upload",
+    "file_id": "file-uuid",
+    "file_size": 50000000  // optional but recommended
+}
+
+Response:
+{
+    "message": "File upload confirmed successfully",
+    "file_metadata": {
+        "file_id": "file-uuid",
+        "original_filename": "large-document.pdf",
+        "s3_key": "user123/2024/03/20/uuid_large-document.pdf",
+        "file_size": 50000000,
+        "upload_status": "uploaded",
+        // ... other metadata
+    }
+}
+```
+
+### Generate Presigned Download URL
+```json
+POST /files
+Authorization: Bearer <IdToken>
+{
+    "action": "generate_download_url",
+    "file_id": "file-uuid",
+    "expiration": 3600  // optional, default 1 hour
+}
+
+Response:
+{
+    "download_url": "https://bucket.s3.amazonaws.com/user123/2024/03/20/uuid_document.pdf?X-Amz-...",
+    "file_id": "file-uuid",
+    "filename": "document.pdf",
+    "expires_in": 3600
 }
 ```
 
@@ -160,6 +234,34 @@ bucket-name/
 - JWT token validation through Cognito
 - User email extraction from Cognito claims
 
+## Upload Workflows
+
+### Workflow 1: Base64 Upload (Small Files ≤ 6MB)
+```
+1. Frontend → Lambda: POST /files { action: "upload", file_content: "base64..." }
+2. Lambda decodes base64 and uploads to S3
+3. Lambda saves metadata to RDS
+4. Lambda → Frontend: Success response with file metadata
+```
+
+### Workflow 2: Presigned URL Upload (Large Files, Recommended)
+```
+1. Frontend → Lambda: POST /files { action: "generate_upload_url", filename: "..." }
+2. Lambda generates presigned URL and saves pending metadata
+3. Lambda → Frontend: Presigned URL + file_id
+4. Frontend → S3: PUT [presigned_url] with binary file data
+5. Frontend → Lambda: POST /files { action: "confirm_upload", file_id: "..." }
+6. Lambda updates file status to "uploaded"
+```
+
+### Workflow 3: File Download
+```
+1. Frontend → Lambda: POST /files { action: "generate_download_url", file_id: "..." }
+2. Lambda validates user access and file status
+3. Lambda → Frontend: Presigned download URL
+4. Frontend → S3: GET [download_url] to download file
+```
+
 ## Error Handling
 
 The function handles various error scenarios:
@@ -169,6 +271,8 @@ The function handles various error scenarios:
 - S3 upload failures
 - Database connection issues
 - File not found or access denied
+- File not ready for download (pending status)
+- Expired presigned URLs
 
 All errors are returned with appropriate HTTP status codes and error messages.
 

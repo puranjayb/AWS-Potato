@@ -52,7 +52,7 @@ def create_files_table(conn):
         print(f"Error creating files table: {str(e)}")
         raise e
 
-def save_file_metadata(file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email):
+def save_file_metadata(file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email, upload_status='uploaded'):
     """Save file metadata to RDS"""
     conn = get_db_connection()
     try:
@@ -61,11 +61,11 @@ def save_file_metadata(file_id, original_filename, s3_key, file_size, content_ty
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO files (file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO files (file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email, upload_status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email)
+                (file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email, upload_status)
             )
             result = cur.fetchone()
             conn.commit()
@@ -171,6 +171,86 @@ def list_files(user_id, project_id=None):
             return files
     except Exception as e:
         print(f"Error listing files: {str(e)}")
+        raise e
+    finally:
+        conn.close()
+
+def generate_presigned_upload_url(s3_key, content_type, expiration=3600):
+    """Generate presigned URL for direct S3 upload"""
+    s3_client = boto3.client('s3')
+    try:
+        response = s3_client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': os.environ['S3_BUCKET_NAME'],
+                'Key': s3_key,
+                'ContentType': content_type,
+                'ServerSideEncryption': 'AES256'
+            },
+            ExpiresIn=expiration
+        )
+        return response
+    except Exception as e:
+        print(f"Error generating presigned URL: {str(e)}")
+        raise e
+
+def generate_presigned_download_url(s3_key, expiration=3600):
+    """Generate presigned URL for file download"""
+    s3_client = boto3.client('s3')
+    try:
+        response = s3_client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': os.environ['S3_BUCKET_NAME'],
+                'Key': s3_key
+            },
+            ExpiresIn=expiration
+        )
+        return response
+    except Exception as e:
+        print(f"Error generating presigned download URL: {str(e)}")
+        raise e
+
+def update_file_status(file_id, user_id, file_size=None, upload_status=None, processing_status=None):
+    """Update file upload status and size after presigned URL upload"""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # Build dynamic query based on provided parameters
+            update_fields = []
+            params = []
+            
+            if file_size is not None:
+                update_fields.append("file_size = %s")
+                params.append(file_size)
+            
+            if upload_status is not None:
+                update_fields.append("upload_status = %s")
+                params.append(upload_status)
+            
+            if processing_status is not None:
+                update_fields.append("processing_status = %s")
+                params.append(processing_status)
+            
+            update_fields.append("updated_at = CURRENT_TIMESTAMP")
+            
+            # Add WHERE clause parameters
+            params.extend([file_id, user_id])
+            
+            query = f"""
+                UPDATE files 
+                SET {', '.join(update_fields)}
+                WHERE file_id = %s AND user_id = %s
+                RETURNING id
+            """
+            
+            cur.execute(query, params)
+            result = cur.fetchone()
+            conn.commit()
+            
+            return result is not None
+    except Exception as e:
+        print(f"Error updating file status: {str(e)}")
         raise e
     finally:
         conn.close()
@@ -292,12 +372,144 @@ def handler(event, context):
                 })
             }
             
+        elif action == 'generate_upload_url':
+            # Generate presigned URL for file upload
+            original_filename = body.get('filename')
+            content_type = body.get('content_type', 'application/octet-stream')
+            project_id = body.get('project_id')
+            expiration = body.get('expiration', 3600)  # Default 1 hour
+            
+            if not original_filename:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({
+                        'error': 'Missing required fields',
+                        'message': 'filename is required'
+                    })
+                }
+            
+            # Generate unique file ID and S3 key
+            file_id = str(uuid.uuid4())
+            timestamp = datetime.now().strftime('%Y/%m/%d')
+            s3_key = f"{user_id}/{timestamp}/{file_id}_{original_filename}"
+            
+            # Generate presigned URL
+            upload_url = generate_presigned_upload_url(s3_key, content_type, expiration)
+            
+            # Pre-save metadata (status: 'pending')
+            save_file_metadata(
+                file_id, original_filename, s3_key, 
+                0, content_type, project_id, user_id, user_email,
+                upload_status='pending'
+            )
+            
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'upload_url': upload_url,
+                    'file_id': file_id,
+                    's3_key': s3_key,
+                    'expires_in': expiration,
+                    'method': 'PUT'
+                })
+            }
+            
+        elif action == 'confirm_upload':
+            # Confirm that file was uploaded via presigned URL
+            file_id = body.get('file_id')
+            file_size = body.get('file_size')
+            
+            if not file_id:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({
+                        'error': 'Missing required fields',
+                        'message': 'file_id is required'
+                    })
+                }
+            
+            # Update file status to uploaded
+            success = update_file_status(
+                file_id, user_id, 
+                file_size=file_size,
+                upload_status='uploaded'
+            )
+            
+            if not success:
+                return {
+                    'statusCode': 404,
+                    'body': json.dumps({
+                        'error': 'File not found',
+                        'message': 'File not found or access denied'
+                    })
+                }
+            
+            # Get updated file metadata
+            file_metadata = get_file_metadata(file_id, user_id)
+            
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'message': 'File upload confirmed successfully',
+                    'file_metadata': file_metadata
+                })
+            }
+            
+        elif action == 'generate_download_url':
+            # Generate presigned URL for file download
+            file_id = body.get('file_id')
+            expiration = body.get('expiration', 3600)  # Default 1 hour
+            
+            if not file_id:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({
+                        'error': 'Missing required fields',
+                        'message': 'file_id is required'
+                    })
+                }
+            
+            # Get file metadata to ensure user has access
+            file_metadata = get_file_metadata(file_id, user_id)
+            
+            if not file_metadata:
+                return {
+                    'statusCode': 404,
+                    'body': json.dumps({
+                        'error': 'File not found',
+                        'message': 'File not found or access denied'
+                    })
+                }
+            
+            # Only allow download of uploaded files
+            if file_metadata['upload_status'] != 'uploaded':
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({
+                        'error': 'File not ready',
+                        'message': 'File upload not completed yet'
+                    })
+                }
+            
+            # Generate presigned download URL
+            download_url = generate_presigned_download_url(file_metadata['s3_key'], expiration)
+            
+            return {
+                'statusCode': 200,
+                'body': json.dumps({
+                    'download_url': download_url,
+                    'file_id': file_id,
+                    'filename': file_metadata['original_filename'],
+                    'expires_in': expiration
+                })
+            }
+            
         else:
             return {
                 'statusCode': 400,
                 'body': json.dumps({
                     'error': 'Invalid action',
-                    'message': 'Supported actions: upload, get_file, list_files'
+                    'message': 'Supported actions: upload, get_file, list_files, generate_upload_url, confirm_upload, generate_download_url'
                 })
             }
             
