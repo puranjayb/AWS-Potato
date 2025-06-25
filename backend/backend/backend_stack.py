@@ -123,12 +123,6 @@ class BackendStack(Stack):
             )
         )
 
-        # Create Lambda layer for psycopg2
-        psycopg2_layer = _lambda.LayerVersion.from_layer_version_arn(
-            self, "Psycopg2Layer",
-            layer_version_arn="arn:aws:lambda:us-east-1:898466741470:layer:psycopg2-py39:2"
-        )
-
         # Create Lambda function for authentication
         auth_handler = _lambda.Function(
             self, "AuthHandler",
@@ -136,7 +130,7 @@ class BackendStack(Stack):
             handler="auth.handler",
             code=_lambda.Code.from_asset("lambda/auth"),
             timeout=Duration.seconds(30),
-            layers=[psycopg2_layer],
+
             environment={
                 "USER_POOL_ID": user_pool.user_pool_id,
                 "CLIENT_ID": client.user_pool_client_id,
@@ -156,7 +150,6 @@ class BackendStack(Stack):
             handler="projects.handler",
             code=_lambda.Code.from_asset("lambda/projects"),
             timeout=Duration.seconds(30),
-            layers=[psycopg2_layer],
             environment={
                 "DB_SECRET_ARN": database.secret.secret_arn,
                 "DB_NAME": "authdb"
@@ -175,7 +168,6 @@ class BackendStack(Stack):
             code=_lambda.Code.from_asset("lambda/file-upload"),
             timeout=Duration.seconds(60),
             memory_size=512,
-            layers=[psycopg2_layer],
             environment={
                 "DB_SECRET_ARN": database.secret.secret_arn,
                 "DB_NAME": "authdb",
