@@ -123,6 +123,12 @@ class BackendStack(Stack):
             )
         )
 
+        # Create Lambda layer for psycopg2
+        psycopg2_layer = _lambda.LayerVersion.from_layer_version_arn(
+            self, "Psycopg2Layer",
+            layer_version_arn="arn:aws:lambda:us-east-1:898466741470:layer:psycopg2-py39:2"
+        )
+
         # Create Lambda function for authentication
         auth_handler = _lambda.Function(
             self, "AuthHandler",
@@ -130,6 +136,7 @@ class BackendStack(Stack):
             handler="auth.handler",
             code=_lambda.Code.from_asset("lambda/auth"),
             timeout=Duration.seconds(30),
+            layers=[psycopg2_layer],
             environment={
                 "USER_POOL_ID": user_pool.user_pool_id,
                 "CLIENT_ID": client.user_pool_client_id,
@@ -149,6 +156,7 @@ class BackendStack(Stack):
             handler="projects.handler",
             code=_lambda.Code.from_asset("lambda/projects"),
             timeout=Duration.seconds(30),
+            layers=[psycopg2_layer],
             environment={
                 "DB_SECRET_ARN": database.secret.secret_arn,
                 "DB_NAME": "authdb"
@@ -167,6 +175,7 @@ class BackendStack(Stack):
             code=_lambda.Code.from_asset("lambda/file-upload"),
             timeout=Duration.seconds(60),
             memory_size=512,
+            layers=[psycopg2_layer],
             environment={
                 "DB_SECRET_ARN": database.secret.secret_arn,
                 "DB_NAME": "authdb",
@@ -207,68 +216,7 @@ class BackendStack(Stack):
             )
         )
 
-        # Create bastion host for database access
-        bastion_sg = ec2.SecurityGroup(
-            self, "BastionSecurityGroup",
-            vpc=vpc,
-            description="Security group for bastion host",
-            allow_all_outbound=True
-        )
 
-        # Allow SSH access from your IP only (replace with your IP)
-        # You can get your IP from: curl ifconfig.me
-        bastion_sg.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),  # REPLACE WITH YOUR IP: ec2.Peer.ipv4("YOUR_IP/32")
-            connection=ec2.Port.tcp(22),
-            description="SSH access"
-        )
-
-        # Create bastion host in public subnet
-        bastion_host = ec2.Instance(
-            self, "BastionHost",
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3,
-                ec2.InstanceSize.MICRO
-            ),
-            machine_image=ec2.MachineImage.latest_amazon_linux2(),
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PUBLIC
-            ),
-            security_groups=[bastion_sg],
-            key_name="your-key-pair"  # REPLACE with your EC2 Key Pair name
-        )
-
-        # Create bastion host for database access
-        bastion_sg = ec2.SecurityGroup(
-            self, "BastionSecurityGroup",
-            vpc=vpc,
-            description="Security group for bastion host",
-            allow_all_outbound=True
-        )
-
-        # Allow SSH access from your IP only (replace with your IP)
-        # You can get your IP from: curl ifconfig.me
-        bastion_sg.add_ingress_rule(
-            peer=ec2.Peer.any_ipv4(),  # REPLACE WITH YOUR IP: ec2.Peer.ipv4("YOUR_IP/32")
-            connection=ec2.Port.tcp(22),
-            description="SSH access - REPLACE with your IP for security"
-        )
-
-        # Create bastion host in public subnet
-        bastion_host = ec2.Instance(
-            self, "BastionHost",
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3,
-                ec2.InstanceSize.MICRO
-            ),
-            machine_image=ec2.MachineImage.latest_amazon_linux2(),
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PUBLIC
-            ),
-            security_groups=[bastion_sg]
-        )
 
         # Create API Gateway
         api = apigw.RestApi(
@@ -384,12 +332,6 @@ class BackendStack(Stack):
             self, "S3BucketName",
             value=file_storage_bucket.bucket_name,
             description="S3 Bucket for file storage"
-        )
-
-        CfnOutput(
-            self, "BastionHostPublicIP",
-            value=bastion_host.instance_public_ip,
-            description="Public IP of bastion host for SSH tunneling"
         )
 
         CfnOutput(
