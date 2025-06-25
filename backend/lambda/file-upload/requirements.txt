@@ -1,2 +1,2 @@
-boto3>=1.26.0
-psycopg2-binary>=2.9.5 
+boto3
+aws-psycopg2
