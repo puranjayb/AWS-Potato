@@ -1,0 +1,181 @@
+{
+	"info": {
+		"_postman_id": "2c3284f3-a8fb-4a3f-ae0c-7fb10522bd2c",
+		"name": "AWS-Potato",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29552605"
+	},
+	"item": [
+		{
+			"name": "Auth-signup",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"signup\",\n    \"username\": \"aryanraj1\",\n    \"email\": \"aryanraj@gmail.com\",\n    \"password\": \"Aryan@123\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod/auth",
+					"protocol": "https",
+					"host": [
+						"cc03ogneyc",
+						"execute-api",
+						"us-west-2",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"prod",
+						"auth"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Auth-signin",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"signin\",\n    \"username\": \"aryanraj1\",\n    \"password\": \"Aryan@123\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod/auth",
+					"protocol": "https",
+					"host": [
+						"cc03ogneyc",
+						"execute-api",
+						"us-west-2",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"prod",
+						"auth"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Projects-create",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJraWQiOiJEKzBDSjJmMjVnV3JPWnF2TDFGWHdHTDFZRXBqVE9BZitYT1J3THlwK2lBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI2ODMxZDM5MC1lMGMxLTcwMjYtODZkNC05N2JiNzBmMzg2NjEiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLXdlc3QtMi5hbWF6b25hd3MuY29tXC91cy13ZXN0LTJfTnFrWmt4OG1ZIiwiY29nbml0bzp1c2VybmFtZSI6ImFyeWFucmFqMSIsIm9yaWdpbl9qdGkiOiJlYzRkYjM3Zi04YzI3LTQ5NWQtODVkNC04MjNhNWE2ZjdiNzciLCJhdWQiOiI1MG01a2x1YXUwYmhpMjdidGtuNTU5bWFpaCIsImV2ZW50X2lkIjoiZjg0NmE5YWYtMTMxZC00YWMzLTk2Y2ItZTQ0MzQwNDJkMDY0IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTA4NzkxNjksImV4cCI6MTc1MDg4Mjc2OSwiaWF0IjoxNzUwODc5MTY5LCJqdGkiOiI2Y2YyZTE5Yy04YTAzLTQ4MGYtYTVjMC0xYzJhYTRiODMyMWEiLCJlbWFpbCI6ImFyeWFucmFqQGdtYWlsLmNvbSJ9.cZa6S6bJm2Ot5DQzeQm2ds8BQ6TSN1BcMxKc7uFL-GyxUGgT0w1GJicSkzsYXYf_rbKlSxbwnIGR8D4Tr0ndrZoY2JHztyYsYvaC3A0qwc0MF1tzKKaUs7amL2JsQC-3aV82MK-5g5jbyPmVrDGdgZW94mOh9vIFP6FHvJ1gZOGzowRSLQDBbs35V0US5-p03JO85C4uGnp_AYsdYWlt19bnwxuZhNu3FsRjrT6AzN6bxTPqYIF-VmLVpbddEXP2-YvM7HR7ipFS8ijGlv4m5u2jiegcUE8flSqpuEt55Oxo_ZGB7W_EqNb6JFwXd5aTTiHok2QdVbW-vA5_9Ty_ig",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"create_project\",\n    \"user_id\": \"aryanraj1\",\n    \"email\": \"aryanraj@gmail.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod/projects",
+					"protocol": "https",
+					"host": [
+						"cc03ogneyc",
+						"execute-api",
+						"us-west-2",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"prod",
+						"projects"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Projects-list",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJraWQiOiJEKzBDSjJmMjVnV3JPWnF2TDFGWHdHTDFZRXBqVE9BZitYT1J3THlwK2lBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI2ODMxZDM5MC1lMGMxLTcwMjYtODZkNC05N2JiNzBmMzg2NjEiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLXdlc3QtMi5hbWF6b25hd3MuY29tXC91cy13ZXN0LTJfTnFrWmt4OG1ZIiwiY29nbml0bzp1c2VybmFtZSI6ImFyeWFucmFqMSIsIm9yaWdpbl9qdGkiOiJlYzRkYjM3Zi04YzI3LTQ5NWQtODVkNC04MjNhNWE2ZjdiNzciLCJhdWQiOiI1MG01a2x1YXUwYmhpMjdidGtuNTU5bWFpaCIsImV2ZW50X2lkIjoiZjg0NmE5YWYtMTMxZC00YWMzLTk2Y2ItZTQ0MzQwNDJkMDY0IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTA4NzkxNjksImV4cCI6MTc1MDg4Mjc2OSwiaWF0IjoxNzUwODc5MTY5LCJqdGkiOiI2Y2YyZTE5Yy04YTAzLTQ4MGYtYTVjMC0xYzJhYTRiODMyMWEiLCJlbWFpbCI6ImFyeWFucmFqQGdtYWlsLmNvbSJ9.cZa6S6bJm2Ot5DQzeQm2ds8BQ6TSN1BcMxKc7uFL-GyxUGgT0w1GJicSkzsYXYf_rbKlSxbwnIGR8D4Tr0ndrZoY2JHztyYsYvaC3A0qwc0MF1tzKKaUs7amL2JsQC-3aV82MK-5g5jbyPmVrDGdgZW94mOh9vIFP6FHvJ1gZOGzowRSLQDBbs35V0US5-p03JO85C4uGnp_AYsdYWlt19bnwxuZhNu3FsRjrT6AzN6bxTPqYIF-VmLVpbddEXP2-YvM7HR7ipFS8ijGlv4m5u2jiegcUE8flSqpuEt55Oxo_ZGB7W_EqNb6JFwXd5aTTiHok2QdVbW-vA5_9Ty_ig",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"create_project\",\n    \"user_id\": \"aryanraj1\",\n    \"email\": \"aryanraj@gmail.com\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod/projects",
+					"protocol": "https",
+					"host": [
+						"cc03ogneyc",
+						"execute-api",
+						"us-west-2",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"prod",
+						"projects"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "files",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod/files",
+					"protocol": "https",
+					"host": [
+						"cc03ogneyc",
+						"execute-api",
+						"us-west-2",
+						"amazonaws",
+						"com"
+					],
+					"path": [
+						"prod",
+						"files"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -1,0 +1,501 @@
+{
+	"info": {
+		"_postman_id": "12345678-1234-1234-1234-123456789012",
+		"name": "AWS Potato API",
+		"description": "Complete API collection for AWS Potato application based on actual Lambda README documentation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "api_url",
+			"value": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod",
+			"type": "string",
+			"description": "API Gateway base URL"
+		},
+		{
+			"key": "access_token",
+			"value": "eyJraWQiOiJEKzBDSjJmMjVnV3JPWnF2TDFGWHdHTDFZRXBqVE9BZitYT1J3THlwK2lBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI2ODMxZDM5MC1lMGMxLTcwMjYtODZkNC05N2JiNzBmMzg2NjEiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLXdlc3QtMi5hbWF6b25hd3MuY29tXC91cy13ZXN0LTJfTnFrWmt4OG1ZIiwiY29nbml0bzp1c2VybmFtZSI6ImFyeWFucmFqMSIsIm9yaWdpbl9qdGkiOiJlYzRkYjM3Zi04YzI3LTQ5NWQtODVkNC04MjNhNWE2ZjdiNzciLCJhdWQiOiI1MG01a2x1YXUwYmhpMjdidGtuNTU5bWFpaCIsImV2ZW50X2lkIjoiZjg0NmE5YWYtMTMxZC00YWMzLTk2Y2ItZTQ0MzQwNDJkMDY0IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTA4NzkxNjksImV4cCI6MTc1MDg4Mjc2OSwiaWF0IjoxNzUwODc5MTY5LCJqdGkiOiI2Y2YyZTE5Yy04YTAzLTQ4MGYtYTVjMC0xYzJhYTRiODMyMWEiLCJlbWFpbCI6ImFyeWFucmFqQGdtYWlsLmNvbSJ9.cZa6S6bJm2Ot5DQzeQm2ds8BQ6TSN1BcMxKc7uFL-GyxUGgT0w1GJicSkzsYXYf_rbKlSxbwnIGR8D4Tr0ndrZoY2JHztyYsYvaC3A0qwc0MF1tzKKaUs7amL2JsQC-3aV82MK-5g5jbyPmVrDGdgZW94mOh9vIFP6FHvJ1gZOGzowRSLQDBbs35V0US5-p03JO85C4uGnp_AYsdYWlt19bnwxuZhNu3FsRjrT6AzN6bxTPqYIF-VmLVpbddEXP2-YvM7HR7ipFS8ijGlv4m5u2jiegcUE8flSqpuEt55Oxo_ZGB7W_EqNb6JFwXd5aTTiHok2QdVbW-vA5_9Ty_ig",
+			"type": "string",
+			"description": "JWT IdToken from authentication"
+		},
+		{
+			"key": "username",
+			"value": "aryanraj1",
+			"type": "string",
+			"description": "Username from decoded token"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Signup User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('User created successfully:', response.username);",
+									"    if (response.project) {",
+									"        pm.collectionVariables.set('project_id', response.project.project_id);",
+									"        console.log('Project ID saved:', response.project.project_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"signup\",\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"YourSecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/auth",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"auth"
+							]
+						},
+						"description": "Create a new user account. Automatically creates a project for the user."
+					}
+				},
+				{
+					"name": "Signin User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.tokens && response.tokens.IdToken) {",
+									"        pm.collectionVariables.set('access_token', response.tokens.IdToken);",
+									"        console.log('IdToken saved to collection variable');",
+									"    }",
+									"    if (response.project) {",
+									"        pm.collectionVariables.set('project_id', response.project.project_id);",
+									"        console.log('Project ID saved:', response.project.project_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"signin\",\n    \"username\": \"aryanraj1\",\n    \"password\": \"YourSecurePassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/auth",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"auth"
+							]
+						},
+						"description": "Sign in with existing user credentials. Returns JWT tokens and user project info."
+					}
+				}
+			],
+			"description": "Authentication endpoints for user signup and signin (no auth required)"
+		},
+		{
+			"name": "Projects",
+			"item": [
+				{
+					"name": "Create Project",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.project_id) {",
+									"        pm.collectionVariables.set('project_id', response.project_id);",
+									"        console.log('Project ID saved:', response.project_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"create_project\",\n    \"user_id\": \"{{username}}\",\n    \"email\": \"aryanraj@gmail.com\",\n    \"cognito_sub\": \"6831d390-e0c1-7026-86d4-97bb70f38661\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/projects",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"projects"
+							]
+						},
+						"description": "Create a new project for the authenticated user"
+					}
+				},
+				{
+					"name": "Get User Projects",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"get_projects\",\n    \"user_id\": \"{{username}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/projects",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"projects"
+							]
+						},
+						"description": "Get all projects for the authenticated user"
+					}
+				}
+			],
+			"description": "Project management endpoints (requires authentication)"
+		},
+		{
+			"name": "File Upload",
+			"item": [
+				{
+					"name": "Upload File (Base64)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.file_id) {",
+									"        pm.collectionVariables.set('last_file_id', response.file_id);",
+									"        console.log('File ID saved:', response.file_id);",
+									"        console.log('S3 Key:', response.s3_key);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"upload\",\n    \"file_content\": \"SGVsbG8gV29ybGQhIFRoaXMgaXMgYSB0ZXN0IGZpbGUgY29udGVudC4=\",\n    \"filename\": \"test-document.txt\",\n    \"content_type\": \"text/plain\",\n    \"project_id\": \"{{project_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/files",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"files"
+							]
+						},
+						"description": "Upload a file using base64 encoding (≤6MB). The file_content should be base64 encoded."
+					}
+				},
+				{
+					"name": "Generate Upload URL",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.upload_url) {",
+									"        pm.collectionVariables.set('upload_url', response.upload_url);",
+									"        pm.collectionVariables.set('pending_file_id', response.file_id);",
+									"        pm.collectionVariables.set('s3_key', response.s3_key);",
+									"        console.log('Upload URL generated for file:', response.file_id);",
+									"        console.log('S3 Key:', response.s3_key);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"generate_upload_url\",\n    \"filename\": \"large-document.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/files",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"files"
+							]
+						},
+						"description": "Generate a presigned URL for uploading large files directly to S3"
+					}
+				},
+				{
+					"name": "Upload to S3 (Using Presigned URL)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/pdf"
+							}
+						],
+						"body": {
+							"mode": "file",
+							"file": {}
+						},
+						"url": {
+							"raw": "{{upload_url}}",
+							"host": [
+								"{{upload_url}}"
+							]
+						},
+						"description": "Upload file directly to S3 using the presigned URL. Select a file in the Body tab."
+					}
+				},
+				{
+					"name": "Confirm Upload",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"confirm_upload\",\n    \"file_id\": \"{{pending_file_id}}\",\n    \"file_size\": 50000000\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/files",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"files"
+							]
+						},
+						"description": "Confirm successful upload to S3 and update file status to 'uploaded'"
+					}
+				},
+				{
+					"name": "List Files",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"list_files\",\n    \"project_id\": \"{{project_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/files",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"files"
+							]
+						},
+						"description": "List all files for the authenticated user, optionally filtered by project"
+					}
+				},
+				{
+					"name": "Get File Metadata",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"get_file\",\n    \"file_id\": \"{{last_file_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/files",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"files"
+							]
+						},
+						"description": "Get detailed metadata for a specific file"
+					}
+				},
+				{
+					"name": "Generate Download URL",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.download_url) {",
+									"        pm.collectionVariables.set('download_url', response.download_url);",
+									"        console.log('Download URL generated');",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"generate_download_url\",\n    \"file_id\": \"{{last_file_id}}\",\n    \"expiration\": 3600\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/files",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"files"
+							]
+						},
+						"description": "Generate a presigned URL for downloading a file from S3"
+					}
+				},
+				{
+					"name": "Download File",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{download_url}}",
+							"host": [
+								"{{download_url}}"
+							]
+						},
+						"description": "Download file directly from S3 using the presigned URL"
+					}
+				}
+			],
+			"description": "File upload and management endpoints with base64 and presigned URL support (requires authentication)"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-add Authorization header for authenticated endpoints",
+					"const accessToken = pm.collectionVariables.get('access_token');",
+					"const requestName = pm.info.requestName;",
+					"",
+					"// Skip auth for signup/signin requests",
+					"if (accessToken && !requestName.includes('Signup') && !requestName.includes('Signin') && !requestName.includes('S3') && !requestName.includes('Download File')) {",
+					"    if (!pm.request.headers.has('Authorization')) {",
+					"        pm.request.headers.add({",
+					"            key: 'Authorization',",
+					"            value: `Bearer ${accessToken}`",
+					"        });",
+					"    }",
+					"}"
+				]
+			}
+		}
+	]
+} 
