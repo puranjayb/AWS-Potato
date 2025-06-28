@@ -12,26 +12,17 @@ CORS_HEADERS = {
 }
 
 def get_db_connection():
-    """Get RDS connection using the secret from Secrets Manager"""
-    client = boto3.client('secretsmanager')
+    """Get Neon DB connection using DATABASE_URL environment variable"""
     try:
-        secret_value = client.get_secret_value(SecretId=os.environ['DB_SECRET_ARN'])
-        secret = json.loads(secret_value['SecretString'])
-        
-        conn = psycopg2.connect(
-            host=secret['host'],
-            port=secret['port'],
-            database=os.environ['DB_NAME'],
-            user=secret['username'],
-            password=secret['password']
-        )
+        database_url = os.environ['DATABASE_URL']
+        conn = psycopg2.connect(database_url)
         return conn
     except Exception as e:
-        print(f"Error connecting to database: {str(e)}")
+        print(f"Error connecting to Neon database: {str(e)}")
         raise e
 
 def create_user_in_db(username, email):
-    """Create user record in RDS"""
+    """Create user record in Neon DB"""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -57,14 +48,15 @@ def create_user_in_db(username, email):
     finally:
         conn.close()
 
-def create_user_project(username, email, cognito_sub):
-    """Create a project for the user using the projects Lambda"""
-    lambda_client = boto3.client('lambda')
+def create_user_project(user_id, email, cognito_sub=None):
+    """Create a project for the user by calling the projects Lambda"""
     try:
+        lambda_client = boto3.client('lambda')
+        
         payload = {
             'body': json.dumps({
                 'action': 'create_project',
-                'user_id': username,
+                'user_id': user_id,
                 'email': email,
                 'cognito_sub': cognito_sub
             })
@@ -76,12 +68,20 @@ def create_user_project(username, email, cognito_sub):
             Payload=json.dumps(payload)
         )
         
-        response_payload = json.loads(response['Payload'].read().decode('utf-8'))
-        return response_payload
+        result = json.loads(response['Payload'].read())
+        return result
         
     except Exception as e:
         print(f"Error creating user project: {str(e)}")
-        raise e
+        # Return a default response if project creation fails
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'project_id': 'default',
+                'user_id': user_id,
+                'email': email
+            })
+        }
 
 def handler(event, context):
     """Main Lambda handler"""
@@ -117,7 +117,7 @@ def handler(event, context):
                 Permanent=True
             )
             
-            # Create user record in RDS
+            # Create user record in Neon DB
             create_user_in_db(username, email)
             
             # Get Cognito user details
@@ -144,8 +144,8 @@ def handler(event, context):
             username = body.get('username')
             password = body.get('password')
             
-            # Authenticate user
-            auth_response = cognito.admin_initiate_auth(
+            # Authenticate with Cognito
+            response = cognito.admin_initiate_auth(
                 UserPoolId=os.environ['USER_POOL_ID'],
                 ClientId=os.environ['CLIENT_ID'],
                 AuthFlow='ADMIN_NO_SRP_AUTH',
@@ -155,16 +155,15 @@ def handler(event, context):
                 }
             )
             
-            # Get user details
+            # Get user details from Cognito
             user_details = cognito.admin_get_user(
                 UserPoolId=os.environ['USER_POOL_ID'],
                 Username=username
             )
-            
             email = next((attr['Value'] for attr in user_details['UserAttributes'] if attr['Name'] == 'email'), None)
             cognito_sub = next((attr['Value'] for attr in user_details['UserAttributes'] if attr['Name'] == 'sub'), None)
             
-            # Create or update user project
+            # Create or update user project (in case it's a returning user)
             project_response = create_user_project(username, email, cognito_sub)
             
             return {
@@ -172,34 +171,41 @@ def handler(event, context):
                 'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'message': 'Authentication successful',
-                    'tokens': auth_response['AuthenticationResult'],
+                    'tokens': response['AuthenticationResult'],
                     'project': json.loads(project_response.get('body', '{}'))
                 })
             }
-            
+        
         else:
             return {
                 'statusCode': 400,
                 'headers': CORS_HEADERS,
                 'body': json.dumps({
-                    'message': 'Invalid action'
+                    'error': 'Invalid action',
+                    'message': 'Supported actions: signup, signin'
                 })
             }
             
-    except ClientError as e:
-        error_code = e.response['Error']['Code']
-        error_message = e.response['Error']['Message']
-        
+    except cognito.exceptions.UsernameExistsException:
         return {
             'statusCode': 400,
             'headers': CORS_HEADERS,
             'body': json.dumps({
-                'error': error_code,
-                'message': error_message
+                'error': 'Username already exists',
+                'message': 'Please choose a different username'
             })
         }
-        
+    except cognito.exceptions.NotAuthorizedException:
+        return {
+            'statusCode': 401,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({
+                'error': 'Authentication failed',
+                'message': 'Invalid username or password'
+            })
+        }
     except Exception as e:
+        print(f"Unexpected error: {str(e)}")
         return {
             'statusCode': 500,
             'headers': CORS_HEADERS,

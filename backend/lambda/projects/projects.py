@@ -14,22 +14,13 @@ CORS_HEADERS = {
 }
 
 def get_db_connection():
-    """Get RDS connection using the secret from Secrets Manager"""
-    client = boto3.client('secretsmanager')
+    """Get Neon DB connection using DATABASE_URL environment variable"""
     try:
-        secret_value = client.get_secret_value(SecretId=os.environ['DB_SECRET_ARN'])
-        secret = json.loads(secret_value['SecretString'])
-        
-        conn = psycopg2.connect(
-            host=secret['host'],
-            port=secret['port'],
-            database=os.environ['DB_NAME'],
-            user=secret['username'],
-            password=secret['password']
-        )
+        database_url = os.environ['DATABASE_URL']
+        conn = psycopg2.connect(database_url)
         return conn
     except Exception as e:
-        print(f"Error connecting to database: {str(e)}")
+        print(f"Error connecting to Neon database: {str(e)}")
         raise e
 
 def create_tables(conn):
@@ -148,14 +139,48 @@ def get_user_projects(user_id):
     finally:
         conn.close()
 
+def extract_user_info(event):
+    """Extract user information from the Lambda event"""
+    print(f"Event structure: {json.dumps(event, default=str)}")
+    
+    user_id = None
+    user_email = None
+    
+    # Try to extract user info from Cognito authorizer
+    try:
+        claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+        if claims:
+            user_id = claims.get('cognito:username') or claims.get('sub')
+            user_email = claims.get('email')
+            print(f"Extracted from claims - user_id: {user_id}, email: {user_email}")
+    except Exception as e:
+        print(f"Failed to extract from claims: {e}")
+    
+    # Fallback: try authorizer directly
+    if not user_id:
+        try:
+            authorizer = event.get('requestContext', {}).get('authorizer', {})
+            user_id = authorizer.get('principalId') or authorizer.get('sub')
+            user_email = authorizer.get('email')
+            print(f"Extracted from authorizer - user_id: {user_id}, email: {user_email}")
+        except Exception as e:
+            print(f"Failed to extract from authorizer: {e}")
+    
+    return user_id, user_email
+
 def handler(event, context):
     """Main Lambda handler"""
     try:
+        print(f"Received event: {json.dumps(event, default=str)}")
+        
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         action = body.get('action')
         
+        print(f"Requested action: {action}")
+        
         if action == 'create_project':
+            # This is called from the auth Lambda, extract user info from body
             user_id = body.get('user_id')
             email = body.get('email')
             cognito_sub = body.get('cognito_sub')
@@ -170,27 +195,31 @@ def handler(event, context):
                     })
                 }
             
-            result = create_or_update_user_project(user_id, email, cognito_sub)
+            project_data = create_or_update_user_project(user_id, email, cognito_sub)
+            
             return {
                 'statusCode': 200,
                 'headers': CORS_HEADERS,
-                'body': json.dumps(result)
+                'body': json.dumps(project_data)
             }
             
         elif action == 'get_projects':
-            user_id = body.get('user_id')
+            # Extract user info from Cognito authorizer
+            user_id, user_email = extract_user_info(event)
             
             if not user_id:
+                print("Authentication failed - no user_id found")
                 return {
-                    'statusCode': 400,
+                    'statusCode': 401,
                     'headers': CORS_HEADERS,
                     'body': json.dumps({
-                        'error': 'Missing required fields',
-                        'message': 'user_id is required'
+                        'error': 'Unauthorized',
+                        'message': 'User not authenticated - no user ID found'
                     })
                 }
             
             projects = get_user_projects(user_id)
+            
             return {
                 'statusCode': 200,
                 'headers': CORS_HEADERS,
@@ -198,7 +227,7 @@ def handler(event, context):
                     'projects': projects
                 })
             }
-            
+        
         else:
             return {
                 'statusCode': 400,
@@ -210,6 +239,10 @@ def handler(event, context):
             }
             
     except Exception as e:
+        print(f"Unexpected error in handler: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
         return {
             'statusCode': 500,
             'headers': CORS_HEADERS,

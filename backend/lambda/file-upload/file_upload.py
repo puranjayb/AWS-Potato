@@ -14,22 +14,13 @@ CORS_HEADERS = {
 }
 
 def get_db_connection():
-    """Get RDS connection using the secret from Secrets Manager"""
-    client = boto3.client('secretsmanager')
+    """Get Neon DB connection using DATABASE_URL environment variable"""
     try:
-        secret_value = client.get_secret_value(SecretId=os.environ['DB_SECRET_ARN'])
-        secret = json.loads(secret_value['SecretString'])
-        
-        conn = psycopg2.connect(
-            host=secret['host'],
-            port=secret['port'],
-            database=os.environ['DB_NAME'],
-            user=secret['username'],
-            password=secret['password']
-        )
+        database_url = os.environ['DATABASE_URL']
+        conn = psycopg2.connect(database_url)
         return conn
     except Exception as e:
-        print(f"Error connecting to database: {str(e)}")
+        print(f"Error connecting to Neon database: {str(e)}")
         raise e
 
 def create_files_table(conn):
@@ -59,7 +50,7 @@ def create_files_table(conn):
         raise e
 
 def save_file_metadata(file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email, upload_status='pending'):
-    """Save file metadata to RDS"""
+    """Save file metadata to Neon DB"""
     conn = get_db_connection()
     try:
         create_files_table(conn)
@@ -83,7 +74,7 @@ def save_file_metadata(file_id, original_filename, s3_key, file_size, content_ty
         conn.close()
 
 def get_file_metadata(file_id, user_id):
-    """Get file metadata from RDS"""
+    """Get file metadata from Neon DB"""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
