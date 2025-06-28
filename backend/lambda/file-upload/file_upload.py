@@ -2,7 +2,6 @@ import json
 import os
 import boto3
 import psycopg2
-import base64
 import uuid
 from datetime import datetime
 from botocore.exceptions import ClientError
@@ -48,7 +47,7 @@ def create_files_table(conn):
                     project_id VARCHAR(36),
                     user_id VARCHAR(255) NOT NULL,
                     user_email VARCHAR(255),
-                    upload_status VARCHAR(50) DEFAULT 'uploaded',
+                    upload_status VARCHAR(50) DEFAULT 'pending',
                     processing_status VARCHAR(50) DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -59,7 +58,7 @@ def create_files_table(conn):
         print(f"Error creating files table: {str(e)}")
         raise e
 
-def save_file_metadata(file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email, upload_status='uploaded'):
+def save_file_metadata(file_id, original_filename, s3_key, file_size, content_type, project_id, user_id, user_email, upload_status='pending'):
     """Save file metadata to RDS"""
     conn = get_db_connection()
     try:
@@ -82,22 +81,6 @@ def save_file_metadata(file_id, original_filename, s3_key, file_size, content_ty
         raise e
     finally:
         conn.close()
-
-def upload_to_s3(file_content, s3_key, content_type):
-    """Upload file to S3 bucket"""
-    s3_client = boto3.client('s3')
-    try:
-        s3_client.put_object(
-            Bucket=os.environ['S3_BUCKET_NAME'],
-            Key=s3_key,
-            Body=file_content,
-            ContentType=content_type,
-            ServerSideEncryption='AES256'
-        )
-        return True
-    except Exception as e:
-        print(f"Error uploading to S3: {str(e)}")
-        raise e
 
 def get_file_metadata(file_id, user_id):
     """Get file metadata from RDS"""
@@ -186,7 +169,6 @@ def generate_presigned_upload_url(s3_key, content_type, expiration=3600):
     """Generate presigned URL for direct S3 upload with CORS support"""
     s3_client = boto3.client('s3')
     try:
-        # Generate presigned URL with CORS headers for browser uploads
         response = s3_client.generate_presigned_url(
             'put_object',
             Params={
@@ -265,51 +247,36 @@ def update_file_status(file_id, user_id, file_size=None, upload_status=None, pro
 
 def extract_user_info(event):
     """Extract user information from the Lambda event"""
-    # Debug: Print the entire event structure (remove in production)
     print(f"Event structure: {json.dumps(event, default=str)}")
     
-    # Try multiple ways to extract user info from Cognito authorizer
     user_id = None
     user_email = None
     
-    # Method 1: Check requestContext.authorizer.claims (most common)
+    # Try to extract user info from Cognito authorizer
     try:
         claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
         if claims:
             user_id = claims.get('cognito:username') or claims.get('sub')
             user_email = claims.get('email')
-            print(f"Method 1 - Claims: {claims}")
+            print(f"Extracted from claims - user_id: {user_id}, email: {user_email}")
     except Exception as e:
-        print(f"Method 1 failed: {e}")
+        print(f"Failed to extract from claims: {e}")
     
-    # Method 2: Check requestContext.authorizer directly
+    # Fallback: try authorizer directly
     if not user_id:
         try:
             authorizer = event.get('requestContext', {}).get('authorizer', {})
             user_id = authorizer.get('principalId') or authorizer.get('sub')
             user_email = authorizer.get('email')
-            print(f"Method 2 - Authorizer: {authorizer}")
+            print(f"Extracted from authorizer - user_id: {user_id}, email: {user_email}")
         except Exception as e:
-            print(f"Method 2 failed: {e}")
+            print(f"Failed to extract from authorizer: {e}")
     
-    # Method 3: Check headers for direct token (fallback)
-    if not user_id:
-        try:
-            headers = event.get('headers', {})
-            auth_header = headers.get('Authorization') or headers.get('authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                # This would require JWT decoding which we'll skip for now
-                print("Found bearer token but not decoding it here")
-        except Exception as e:
-            print(f"Method 3 failed: {e}")
-    
-    print(f"Extracted user_id: {user_id}, user_email: {user_email}")
     return user_id, user_email
 
 def handler(event, context):
-    """Main Lambda handler"""
+    """Main Lambda handler for simplified file upload"""
     try:
-        # Debug: Log the entire event for troubleshooting
         print(f"Received event: {json.dumps(event, default=str)}")
         
         # Parse request body
@@ -318,7 +285,7 @@ def handler(event, context):
         
         print(f"Requested action: {action}")
         
-        # Extract user info using improved method
+        # Extract user info
         user_id, user_email = extract_user_info(event)
         
         if not user_id:
@@ -328,141 +295,13 @@ def handler(event, context):
                 'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Unauthorized',
-                    'message': 'User not authenticated - no user ID found',
-                    'debug_info': 'Check Authorization header and Cognito configuration'
+                    'message': 'User not authenticated - no user ID found'
                 })
             }
         
         print(f"Authenticated user: {user_id}, email: {user_email}")
         
         if action == 'upload':
-            # Handle file upload via base64
-            file_content = body.get('file_content')
-            original_filename = body.get('filename')
-            content_type = body.get('content_type', 'application/octet-stream')
-            project_id = body.get('project_id')
-            
-            if not file_content or not original_filename:
-                return {
-                    'statusCode': 400,
-                    'headers': CORS_HEADERS,
-                    'body': json.dumps({
-                        'error': 'Missing required fields',
-                        'message': 'file_content and filename are required'
-                    })
-                }
-            
-            # Validate and decode base64 file content
-            try:
-                # Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
-                if ',' in file_content and file_content.startswith('data:'):
-                    file_content = file_content.split(',', 1)[1]
-                
-                # Decode base64
-                file_data = base64.b64decode(file_content)
-                file_size = len(file_data)
-                
-                # Check file size limit (Lambda payload is ~6MB, so ~4.5MB for base64)
-                if file_size > 4.5 * 1024 * 1024:  # 4.5MB
-                    return {
-                        'statusCode': 413,
-                        'headers': CORS_HEADERS,
-                        'body': json.dumps({
-                            'error': 'File too large',
-                            'message': 'File size exceeds 4.5MB limit for base64 upload. Use presigned URL upload instead.'
-                        })
-                    }
-                    
-            except Exception as e:
-                print(f"Base64 decode error: {str(e)}")
-                return {
-                    'statusCode': 400,
-                    'headers': CORS_HEADERS,
-                    'body': json.dumps({
-                        'error': 'Invalid file content',
-                        'message': f'File content must be valid base64: {str(e)}'
-                    })
-                }
-            
-            # Generate unique file ID and S3 key
-            file_id = str(uuid.uuid4())
-            timestamp = datetime.now().strftime('%Y/%m/%d')
-            # Sanitize filename for S3
-            safe_filename = original_filename.replace(' ', '_').replace('/', '_')
-            s3_key = f"{user_id}/{timestamp}/{file_id}_{safe_filename}"
-            
-            print(f"Uploading file {original_filename} ({file_size} bytes) to S3 key: {s3_key}")
-            
-            # Upload to S3
-            upload_to_s3(file_data, s3_key, content_type)
-            
-            # Save metadata to RDS
-            db_id = save_file_metadata(
-                file_id, original_filename, s3_key, 
-                file_size, content_type, project_id, user_id, user_email
-            )
-            
-            print(f"File uploaded successfully with database ID: {db_id}")
-            
-            return {
-                'statusCode': 200,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({
-                    'message': 'File uploaded successfully',
-                    'file_id': file_id,
-                    'original_filename': original_filename,
-                    'file_size': file_size,
-                    's3_key': s3_key,
-                    'user_email': user_email
-                })
-            }
-            
-        elif action == 'get_file':
-            # Get file metadata
-            file_id = body.get('file_id')
-            
-            if not file_id:
-                return {
-                    'statusCode': 400,
-                    'headers': CORS_HEADERS,
-                    'body': json.dumps({
-                        'error': 'Missing required fields',
-                        'message': 'file_id is required'
-                    })
-                }
-            
-            file_metadata = get_file_metadata(file_id, user_id)
-            
-            if not file_metadata:
-                return {
-                    'statusCode': 404,
-                    'headers': CORS_HEADERS,
-                    'body': json.dumps({
-                        'error': 'File not found',
-                        'message': 'File not found or access denied'
-                    })
-                }
-            
-            return {
-                'statusCode': 200,
-                'headers': CORS_HEADERS,
-                'body': json.dumps(file_metadata)
-            }
-            
-        elif action == 'list_files':
-            # List user files
-            project_id = body.get('project_id')
-            files = list_files(user_id, project_id)
-            
-            return {
-                'statusCode': 200,
-                'headers': CORS_HEADERS,
-                'body': json.dumps({
-                    'files': files
-                })
-            }
-            
-        elif action == 'generate_upload_url':
             # Generate presigned URL for file upload
             original_filename = body.get('filename')
             content_type = body.get('content_type', 'application/octet-stream')
@@ -496,6 +335,8 @@ def handler(event, context):
                 upload_status='pending'
             )
             
+            print(f"Generated upload URL for file: {original_filename}, file_id: {file_id}")
+            
             return {
                 'statusCode': 200,
                 'headers': CORS_HEADERS,
@@ -505,11 +346,11 @@ def handler(event, context):
                     's3_key': s3_key,
                     'expires_in': expiration,
                     'method': 'PUT',
-                    'instructions': 'Upload the file to upload_url using PUT method with Content-Type header'
+                    'instructions': 'Upload your file to the upload_url using PUT method with the correct Content-Type header'
                 })
             }
             
-        elif action == 'confirm_upload':
+        elif action == 'confirm':
             # Confirm that file was uploaded via presigned URL
             file_id = body.get('file_id')
             file_size = body.get('file_size')
@@ -544,6 +385,8 @@ def handler(event, context):
             # Get updated file metadata
             file_metadata = get_file_metadata(file_id, user_id)
             
+            print(f"Upload confirmed for file_id: {file_id}")
+            
             return {
                 'statusCode': 200,
                 'headers': CORS_HEADERS,
@@ -553,7 +396,52 @@ def handler(event, context):
                 })
             }
             
-        elif action == 'generate_download_url':
+        elif action == 'get':
+            # Get file metadata
+            file_id = body.get('file_id')
+            
+            if not file_id:
+                return {
+                    'statusCode': 400,
+                    'headers': CORS_HEADERS,
+                    'body': json.dumps({
+                        'error': 'Missing required fields',
+                        'message': 'file_id is required'
+                    })
+                }
+            
+            file_metadata = get_file_metadata(file_id, user_id)
+            
+            if not file_metadata:
+                return {
+                    'statusCode': 404,
+                    'headers': CORS_HEADERS,
+                    'body': json.dumps({
+                        'error': 'File not found',
+                        'message': 'File not found or access denied'
+                    })
+                }
+            
+            return {
+                'statusCode': 200,
+                'headers': CORS_HEADERS,
+                'body': json.dumps(file_metadata)
+            }
+            
+        elif action == 'list':
+            # List user files
+            project_id = body.get('project_id')
+            files = list_files(user_id, project_id)
+            
+            return {
+                'statusCode': 200,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({
+                    'files': files
+                })
+            }
+            
+        elif action == 'download':
             # Generate presigned URL for file download
             file_id = body.get('file_id')
             expiration = body.get('expiration', 3600)  # Default 1 hour
@@ -612,7 +500,7 @@ def handler(event, context):
                 'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Invalid action',
-                    'message': 'Supported actions: upload, get_file, list_files, generate_upload_url, confirm_upload, generate_download_url'
+                    'message': 'Supported actions: upload, confirm, get, list, download'
                 })
             }
             
@@ -626,7 +514,6 @@ def handler(event, context):
             'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': 'Internal Server Error',
-                'message': str(e),
-                'debug_info': 'Check CloudWatch logs for detailed error information'
+                'message': str(e)
             })
         } 
