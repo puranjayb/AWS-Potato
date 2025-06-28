@@ -1,103 +1,163 @@
-import Image from "next/image";
+// app/page.tsx
+'use client'
+import Link from 'next/link'
+import { Heart, Shield, Clock, Users, ArrowRight, Stethoscope } from 'lucide-react'
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-dark-primary">
+      {/* Header */}
+      <header className="border-b border-dark-accent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
+                <Heart className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold text-primary-400">HealthCare+</span>
+            </div>
+            
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link href="#features" className="text-dark-secondary hover:text-primary-400 transition-colors">
+                Features
+              </Link>
+              <Link href="#services" className="text-dark-secondary hover:text-primary-400 transition-colors">
+                Services
+              </Link>
+              <Link href="#about" className="text-dark-secondary hover:text-primary-400 transition-colors">
+                About
+              </Link>
+            </nav>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <div className="flex items-center space-x-4">
+              <Link href="/login" className="btn-secondary">
+                Login
+              </Link>
+              <Link href="/signup" className="btn-primary">
+                Get Started
+              </Link>
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      </header>
+
+      {/* Hero Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-5xl md:text-7xl font-bold text-dark-primary mb-6">
+            Your Health,{' '}
+            <span className="text-primary-400">Our Priority</span>
+          </h1>
+          <p className="text-xl text-dark-secondary mb-8 max-w-3xl mx-auto">
+            Comprehensive healthcare management system with medicine reminders, 
+            emergency services, nearby hospital finder, and personalized diet planning.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/signup" className="btn-primary text-lg px-8 py-3 inline-flex items-center">
+              Start Your Journey
+              <ArrowRight className="ml-2 w-5 h-5" />
+            </Link>
+            <Link href="#features" className="btn-secondary text-lg px-8 py-3">
+              Learn More
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-dark-secondary/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-dark-primary mb-4">
+              Healthcare Made Simple
+            </h2>
+            <p className="text-xl text-dark-secondary max-w-2xl mx-auto">
+              Comprehensive healthcare solutions designed for modern families
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="card text-center hover:border-primary-500 transition-colors">
+              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-dark-primary mb-2">
+                Medicine Reminder
+              </h3>
+              <p className="text-dark-secondary">
+                Never miss your medications with smart scheduling and notifications
+              </p>
+            </div>
+
+            <div className="card text-center hover:border-primary-500 transition-colors">
+              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-dark-primary mb-2">
+                Emergency Services
+              </h3>
+              <p className="text-dark-secondary">
+                Quick access to emergency contacts and nearest medical facilities
+              </p>
+            </div>
+
+            <div className="card text-center hover:border-primary-500 transition-colors">
+              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Stethoscope className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-dark-primary mb-2">
+                Hospital Finder
+              </h3>
+              <p className="text-dark-secondary">
+                Locate nearby hospitals and healthcare providers instantly
+              </p>
+            </div>
+
+            <div className="card text-center hover:border-primary-500 transition-colors">
+              <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-dark-primary mb-2">
+                Family Care
+              </h3>
+              <p className="text-dark-secondary">
+                Manage health records for your entire family in one place
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-4xl font-bold text-dark-primary mb-6">
+            Ready to Take Control of Your Health?
+          </h2>
+          <p className="text-xl text-dark-secondary mb-8">
+            Join thousands of families who trust HealthCare+ for their medical needs
+          </p>
+          <Link href="/signup" className="btn-primary text-lg px-12 py-4 inline-flex items-center">
+            Get Started Today
+            <ArrowRight className="ml-2 w-5 h-5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-dark-accent py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto text-center">
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+              <Heart className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-primary-400">HealthCare+</span>
+          </div>
+          <p className="text-dark-muted">
+            © 2025 HealthCare+. All rights reserved. Your health, our commitment.
+          </p>
+        </div>
       </footer>
     </div>
-  );
+  )
 }

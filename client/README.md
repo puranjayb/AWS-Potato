@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HealthCare+ - Healthcare Management System
+
+A modern healthcare management system built with Next.js, TypeScript, Tailwind CSS, Zustand, and React Query.
+
+## Features
+
+- 🏥 **Medicine Reminder System** - Never miss your medications
+- 🚨 **Emergency Services** - Quick access to emergency help
+- 🗺️ **Hospital Finder** - Locate nearby healthcare facilities
+- 👨‍👩‍👧‍👦 **Family Care** - Manage entire family's health records
+- 📊 **Medical Reports** - Access and organize medical documents
+- 🎯 **Personalized Dashboard** - Tailored healthcare insights
+
+## Tech Stack
+
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **API Management**: React Query (@tanstack/react-query)
+- **Forms**: React Hook Form
+- **Icons**: Lucide React
 
 ## Getting Started
 
-First, run the development server:
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd healthcare-app
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   Update the API URL in `.env.local` to match your backend endpoint.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-## Learn More
+## Features in Detail
 
-To learn more about Next.js, take a look at the following resources:
+### 🔐 Authentication
+- Secure signup and signin
+- JWT token management
+- Protected routes
+- Persistent login state
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 🎨 UI/UX
+- Dark theme design
+- Responsive layout
+- Smooth animations
+- Healthcare-focused color scheme
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 📱 State Management
+- Zustand for global state
+- React Query for server state
+- Form state with React Hook Form
 
-## Deploy on Vercel
+## Demo Credentials
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+For testing purposes:
+- **Username**: aryanraj1
+- **Password**: YourSecurePassword123!
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
