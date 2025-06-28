@@ -1,39 +1,10 @@
 {
 	"info": {
-		"_postman_id": "12345678-1234-1234-1234-123456789012",
+		"_postman_id": "13bcd3ac-eb6a-4801-ac97-d7c82ef2d866",
 		"name": "AWS Potato API",
 		"description": "Complete API collection for AWS Potato application based on actual Lambda README documentation",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"variable": [
-		{
-			"key": "api_url",
-			"value": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod",
-			"type": "string",
-			"description": "API Gateway base URL"
-		},
-		{
-			"key": "access_token",
-			"value": "eyJraWQiOiJEKzBDSjJmMjVnV3JPWnF2TDFGWHdHTDFZRXBqVE9BZitYT1J3THlwK2lBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI2ODMxZDM5MC1lMGMxLTcwMjYtODZkNC05N2JiNzBmMzg2NjEiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLXdlc3QtMi5hbWF6b25hd3MuY29tXC91cy13ZXN0LTJfTnFrWmt4OG1ZIiwiY29nbml0bzp1c2VybmFtZSI6ImFyeWFucmFqMSIsIm9yaWdpbl9qdGkiOiJlYzRkYjM3Zi04YzI3LTQ5NWQtODVkNC04MjNhNWE2ZjdiNzciLCJhdWQiOiI1MG01a2x1YXUwYmhpMjdidGtuNTU5bWFpaCIsImV2ZW50X2lkIjoiZjg0NmE5YWYtMTMxZC00YWMzLTk2Y2ItZTQ0MzQwNDJkMDY0IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTA4NzkxNjksImV4cCI6MTc1MDg4Mjc2OSwiaWF0IjoxNzUwODc5MTY5LCJqdGkiOiI2Y2YyZTE5Yy04YTAzLTQ4MGYtYTVjMC0xYzJhYTRiODMyMWEiLCJlbWFpbCI6ImFyeWFucmFqQGdtYWlsLmNvbSJ9.cZa6S6bJm2Ot5DQzeQm2ds8BQ6TSN1BcMxKc7uFL-GyxUGgT0w1GJicSkzsYXYf_rbKlSxbwnIGR8D4Tr0ndrZoY2JHztyYsYvaC3A0qwc0MF1tzKKaUs7amL2JsQC-3aV82MK-5g5jbyPmVrDGdgZW94mOh9vIFP6FHvJ1gZOGzowRSLQDBbs35V0US5-p03JO85C4uGnp_AYsdYWlt19bnwxuZhNu3FsRjrT6AzN6bxTPqYIF-VmLVpbddEXP2-YvM7HR7ipFS8ijGlv4m5u2jiegcUE8flSqpuEt55Oxo_ZGB7W_EqNb6JFwXd5aTTiHok2QdVbW-vA5_9Ty_ig",
-			"type": "string",
-			"description": "JWT IdToken from authentication"
-		},
-		{
-			"key": "username",
-			"value": "aryanraj1",
-			"type": "string",
-			"description": "Username from decoded token"
-		}
-	],
-	"auth": {
-		"type": "bearer",
-		"bearer": [
-			{
-				"key": "token",
-				"value": "{{access_token}}",
-				"type": "string"
-			}
-		]
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29552605"
 	},
 	"item": [
 		{
@@ -55,7 +26,8 @@
 									"    }",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -84,7 +56,8 @@
 							]
 						},
 						"description": "Create a new user account. Automatically creates a project for the user."
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Signin User",
@@ -105,7 +78,8 @@
 									"    }",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -122,7 +96,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"signin\",\n    \"username\": \"aryanraj1\",\n    \"password\": \"YourSecurePassword123!\"\n}"
+							"raw": "{\n    \"action\": \"signin\",\n    \"username\": \"testuser\",\n    \"password\": \"YourSecurePassword123!\"\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/auth",
@@ -134,7 +108,8 @@
 							]
 						},
 						"description": "Sign in with existing user credentials. Returns JWT tokens and user project info."
-					}
+					},
+					"response": []
 				}
 			],
 			"description": "Authentication endpoints for user signup and signin (no auth required)"
@@ -157,7 +132,8 @@
 									"    }",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -171,7 +147,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"create_project\",\n    \"user_id\": \"{{username}}\",\n    \"email\": \"aryanraj@gmail.com\",\n    \"cognito_sub\": \"6831d390-e0c1-7026-86d4-97bb70f38661\"\n}"
+							"raw": "{\n    \"action\": \"create_project\",\n    \"user_id\": \"{{username}}\",\n    \"email\": \"test@example.com\"\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/projects",
@@ -183,7 +159,8 @@
 							]
 						},
 						"description": "Create a new project for the authenticated user"
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Get User Projects",
@@ -209,7 +186,8 @@
 							]
 						},
 						"description": "Get all projects for the authenticated user"
-					}
+					},
+					"response": []
 				}
 			],
 			"description": "Project management endpoints (requires authentication)"
@@ -259,7 +237,8 @@
 							]
 						},
 						"description": "Upload a file using base64 encoding (≤6MB). The file_content should be base64 encoded."
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Generate Upload URL",
@@ -279,7 +258,8 @@
 									"    }",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {}
 							}
 						}
 					],
@@ -293,7 +273,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"generate_upload_url\",\n    \"filename\": \"large-document.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}"
+							"raw": "{\n    \"action\": \"generate_upload_url\",\n    \"filename\": \"resume.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/files",
@@ -305,7 +285,8 @@
 							]
 						},
 						"description": "Generate a presigned URL for uploading large files directly to S3"
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Upload to S3 (Using Presigned URL)",
@@ -322,7 +303,9 @@
 						],
 						"body": {
 							"mode": "file",
-							"file": {}
+							"file": {
+								"src": "/Users/aryanraj/Library/Mobile Documents/com~apple~CloudDocs/Aryan_resume_new.pdf"
+							}
 						},
 						"url": {
 							"raw": "{{upload_url}}",
@@ -331,7 +314,8 @@
 							]
 						},
 						"description": "Upload file directly to S3 using the presigned URL. Select a file in the Body tab."
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Confirm Upload",
@@ -357,7 +341,8 @@
 							]
 						},
 						"description": "Confirm successful upload to S3 and update file status to 'uploaded'"
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "List Files",
@@ -383,7 +368,8 @@
 							]
 						},
 						"description": "List all files for the authenticated user, optionally filtered by project"
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Get File Metadata",
@@ -409,7 +395,8 @@
 							]
 						},
 						"description": "Get detailed metadata for a specific file"
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Generate Download URL",
@@ -452,7 +439,8 @@
 							]
 						},
 						"description": "Generate a presigned URL for downloading a file from S3"
-					}
+					},
+					"response": []
 				},
 				{
 					"name": "Download File",
@@ -469,12 +457,23 @@
 							]
 						},
 						"description": "Download file directly from S3 using the presigned URL"
-					}
+					},
+					"response": []
 				}
 			],
 			"description": "File upload and management endpoints with base64 and presigned URL support (requires authentication)"
 		}
 	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
 	"event": [
 		{
 			"listen": "prerequest",
@@ -497,5 +496,46 @@
 				]
 			}
 		}
+	],
+	"variable": [
+		{
+			"key": "api_url",
+			"value": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "eyJraWQiOiJEKzBDSjJmMjVnV3JPWnF2TDFGWHdHTDFZRXBqVE9BZitYT1J3THlwK2lBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI2ODMxZDM5MC1lMGMxLTcwMjYtODZkNC05N2JiNzBmMzg2NjEiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLXdlc3QtMi5hbWF6b25hd3MuY29tXC91cy13ZXN0LTJfTnFrWmt4OG1ZIiwiY29nbml0bzp1c2VybmFtZSI6ImFyeWFucmFqMSIsIm9yaWdpbl9qdGkiOiJlYzRkYjM3Zi04YzI3LTQ5NWQtODVkNC04MjNhNWE2ZjdiNzciLCJhdWQiOiI1MG01a2x1YXUwYmhpMjdidGtuNTU5bWFpaCIsImV2ZW50X2lkIjoiZjg0NmE5YWYtMTMxZC00YWMzLTk2Y2ItZTQ0MzQwNDJkMDY0IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTA4NzkxNjksImV4cCI6MTc1MDg4Mjc2OSwiaWF0IjoxNzUwODc5MTY5LCJqdGkiOiI2Y2YyZTE5Yy04YTAzLTQ4MGYtYTVjMC0xYzJhYTRiODMyMWEiLCJlbWFpbCI6ImFyeWFucmFqQGdtYWlsLmNvbSJ9.cZa6S6bJm2Ot5DQzeQm2ds8BQ6TSN1BcMxKc7uFL-GyxUGgT0w1GJicSkzsYXYf_rbKlSxbwnIGR8D4Tr0ndrZoY2JHztyYsYvaC3A0qwc0MF1tzKKaUs7amL2JsQC-3aV82MK-5g5jbyPmVrDGdgZW94mOh9vIFP6FHvJ1gZOGzowRSLQDBbs35V0US5-p03JO85C4uGnp_AYsdYWlt19bnwxuZhNu3FsRjrT6AzN6bxTPqYIF-VmLVpbddEXP2-YvM7HR7ipFS8ijGlv4m5u2jiegcUE8flSqpuEt55Oxo_ZGB7W_EqNb6JFwXd5aTTiHok2QdVbW-vA5_9Ty_ig",
+			"type": "string"
+		},
+		{
+			"key": "username",
+			"value": "aryanraj1",
+			"type": "string"
+		},
+		{
+			"key": "project_id",
+			"value": ""
+		},
+		{
+			"key": "upload_url",
+			"value": ""
+		},
+		{
+			"key": "pending_file_id",
+			"value": ""
+		},
+		{
+			"key": "s3_key",
+			"value": ""
+		},
+		{
+			"key": "download_url",
+			"value": ""
+		},
+		{
+			"key": "last_file_id",
+			"value": ""
+		}
 	]
-} 
+}
