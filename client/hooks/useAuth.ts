@@ -1,9 +1,9 @@
 // hooks/useAuth.ts
 import { useMutation } from '@tanstack/react-query'
-import { authAPI, SignupData, SigninData } from '../lib/api'
+import { authAPI, SignupData, SigninData } from '../utils/api'
 import { useAuthStore } from '../store/authStore'
 import { useRouter } from 'next/navigation'
-import { toast } from '../lib/toast'
+import { toast } from '../utils/toast'
 
 export const useSignup = () => {
   const { login } = useAuthStore()
