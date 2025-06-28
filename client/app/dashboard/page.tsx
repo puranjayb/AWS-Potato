@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 
 export default function DashboardPage() {
-  const { user, isAuthenticated } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const logout = useLogout()
   const router = useRouter()
 
@@ -28,7 +28,7 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, router])
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-dark-primary flex items-center justify-center">
         <div className="text-center">
@@ -58,7 +58,6 @@ export default function DashboardPage() {
             <div className="flex items-center space-x-4">
               <div className="hidden sm:block text-right">
                 <p className="text-sm text-dark-primary font-medium">Welcome back!</p>
-                <p className="text-sm text-dark-muted">{user.username}</p>
               </div>
               <button
                 onClick={logout}
@@ -85,7 +84,7 @@ export default function DashboardPage() {
                 🎉 Logged in successfully!
               </h2>
               <p className="text-green-200">
-                Welcome to your healthcare dashboard, {user.username}!
+                Welcome to your healthcare dashboard!
               </p>
             </div>
           </div>
@@ -189,7 +188,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <p className="text-dark-secondary mb-4">
-              Keep track of your entire family's health records and appointments.
+              Keep track of your entire family`s health records and appointments.
             </p>
             <button className="btn-primary w-full bg-purple-600 hover:bg-purple-700">
               Family Health
