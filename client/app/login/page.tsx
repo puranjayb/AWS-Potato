@@ -130,22 +130,11 @@ export default function LoginPage() {
           {/* Signup Link */}
           <div className="mt-6 text-center">
             <p className="text-dark-secondary">
-              Don't have an account?{' '}
+              Do not have an account?{' '}
               <Link href="/signup" className="text-primary-400 hover:text-primary-300 font-medium">
                 Create one here
               </Link>
             </p>
-          </div>
-        </div>
-
-        {/* Demo Credentials */}
-        <div className="card border-amber-600/30 bg-amber-600/10">
-          <div className="text-center">
-            <h3 className="text-sm font-medium text-amber-400 mb-2">Demo Credentials</h3>
-            <div className="text-sm text-amber-200 space-y-1">
-              <p><strong>Username:</strong> aryanraj1</p>
-              <p><strong>Password:</strong> YourSecurePassword123!</p>
-            </div>
           </div>
         </div>
 

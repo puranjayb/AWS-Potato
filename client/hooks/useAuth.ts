@@ -12,16 +12,33 @@ export const useSignup = () => {
   return useMutation({
     mutationFn: (data: Omit<SignupData, 'action'>) => authAPI.signup(data),
     onSuccess: (response) => {
-      if (response.success && response.user && response.token) {
-        login(response.user, response.token)
-        toast.success('Account created successfully!')
+      // Check if signup was successful and tokens exist
+      if (response.tokens) {
+        // Store user data and tokens in the auth store
+        login(response.tokens.AccessToken)
+
+        // Show success message
+        toast.success('Signed up successfully!')
+
+        // Redirect to the dashboard
         router.push('/dashboard')
       } else {
-        toast.error(response.message || 'Signup failed')
+        // Signup failed
+        toast.error('Signup failed')
       }
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Signup failed')
+    onError: (error: unknown) => {
+      // Handle different types of errors
+      if (error instanceof Error) {
+        // Handle generic error
+        toast.error(error.message || 'An error occurred during signup')
+      } else if (typeof error === 'string') {
+        // Handle string error
+        toast.error(error || 'An error occurred during signup')
+      } else {
+        // Handle unknown error
+        toast.error('An unknown error occurred during signup')
+      }
     },
   })
 }
@@ -33,16 +50,33 @@ export const useSignin = () => {
   return useMutation({
     mutationFn: (data: Omit<SigninData, 'action'>) => authAPI.signin(data),
     onSuccess: (response) => {
-      if (response.success && response.user && response.token) {
-        login(response.user, response.token)
+      // Check if authentication was successful and tokens exist
+      if (response.tokens) {
+        // Store user data and tokens in the auth store
+        login(response.tokens.AccessToken)
+
+        // Show success message
         toast.success('Logged in successfully!')
+
+        // Redirect to the dashboard
         router.push('/dashboard')
       } else {
-        toast.error(response.message || 'Login failed')
+        // Authentication failed
+        toast.error('Authentication failed')
       }
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Login failed')
+    onError: (error: unknown) => {
+      // Handle different types of errors
+      if (error instanceof Error) {
+        // Handle generic error
+        toast.error(error.message || 'An error occurred during login')
+      } else if (typeof error === 'string') {
+        // Handle string error
+        toast.error(error || 'An error occurred during login')
+      } else {
+        // Handle unknown error
+        toast.error('An unknown error occurred during login')
+      }
     },
   })
 }
