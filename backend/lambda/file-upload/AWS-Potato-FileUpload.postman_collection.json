@@ -1,654 +1,380 @@
 {
-  "info": {
-    "name": "AWS-Potato File Upload API",
-    "description": "Complete file upload and management API collection for AWS-Potato application",
-    "version": "2.0.0",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "variable": [
-    {
-      "key": "api_url",
-      "value": "https://your-api-gateway-url.execute-api.us-west-2.amazonaws.com/prod",
-      "description": "Your API Gateway URL from CDK deployment",
-      "type": "string"
-    },
-    {
-      "key": "id_token",
-      "value": "your-cognito-id-token",
-      "description": "Cognito ID Token from authentication (Bearer token)",
-      "type": "string"
-    },
-    {
-      "key": "file_id",
-      "value": "",
-      "description": "File ID from upload responses (auto-populated)",
-      "type": "string"
-    },
-    {
-      "key": "upload_url",
-      "value": "",
-      "description": "Presigned upload URL (auto-populated)",
-      "type": "string"
-    },
-    {
-      "key": "project_id",
-      "value": "test-project-123",
-      "description": "Optional project ID for organizing files",
-      "type": "string"
-    }
-  ],
-  "item": [
-    {
-      "name": "Authentication",
-      "item": [
-        {
-          "name": "Test Authentication",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response has files array\", function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('files');",
-                  "    pm.expect(jsonData.files).to.be.an('array');",
-                  "});",
-                  "",
-                  "console.log('Authentication test passed! Token is valid.');"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}",
-                "description": "Cognito ID Token"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"list_files\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Quick test to verify authentication is working. Should return a list of files or show authentication errors."
-          }
-        }
-      ],
-      "description": "Test authentication and API connectivity"
-    },
-    {
-      "name": "File Upload",
-      "item": [
-        {
-          "name": "Base64 Upload (Small Files ≤4.5MB)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response contains file_id\", function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('file_id');",
-                  "    pm.expect(jsonData).to.have.property('message');",
-                  "    pm.expect(jsonData.message).to.include('uploaded successfully');",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    const response = pm.response.json();",
-                  "    if (response.file_id) {",
-                  "        pm.collectionVariables.set('file_id', response.file_id);",
-                  "        console.log('✅ File uploaded successfully!');",
-                  "        console.log('📁 File ID saved:', response.file_id);",
-                  "        console.log('📊 File size:', response.file_size, 'bytes');",
-                  "        console.log('🗂️ S3 Key:', response.s3_key);",
-                  "    }",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"upload\",\n    \"file_content\": \"SGVsbG8gV29ybGQhIFRoaXMgaXMgYSB0ZXN0IGZpbGUgZm9yIEFXUy1Qb3RhdG8gZmlsZSB1cGxvYWQgZnVuY3Rpb25hbGl0eS4=\",\n    \"filename\": \"test-document.txt\",\n    \"content_type\": \"text/plain\",\n    \"project_id\": \"{{project_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Upload a file using base64 encoding (≤4.5MB). The file_content contains a test document encoded in base64."
-          }
-        },
-        {
-          "name": "Generate Presigned Upload URL (Large Files)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response contains upload_url\", function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('upload_url');",
-                  "    pm.expect(jsonData).to.have.property('file_id');",
-                  "    pm.expect(jsonData).to.have.property('method');",
-                  "    pm.expect(jsonData.method).to.eql('PUT');",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    const response = pm.response.json();",
-                  "    if (response.upload_url && response.file_id) {",
-                  "        pm.collectionVariables.set('upload_url', response.upload_url);",
-                  "        pm.collectionVariables.set('file_id', response.file_id);",
-                  "        console.log('✅ Presigned URL generated successfully!');",
-                  "        console.log('📁 File ID:', response.file_id);",
-                  "        console.log('🔗 Upload URL generated (expires in', response.expires_in, 'seconds)');",
-                  "        console.log('📋 Next: Use the \"Upload to S3\" request to upload your file');",
-                  "    }",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"generate_upload_url\",\n    \"filename\": \"large-document.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Generate a presigned URL for uploading large files directly to S3."
-          }
-        },
-        {
-          "name": "Upload to S3 (Using Presigned URL)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    console.log('✅ File uploaded to S3 successfully!');",
-                  "    console.log('📋 Next: Use \"Confirm Upload\" to complete the process');",
-                  "} else {",
-                  "    console.log('❌ S3 upload failed. Check Content-Type header and file selection.');",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/pdf",
-                "description": "IMPORTANT: Must match the content_type used when generating the presigned URL"
-              }
-            ],
-            "body": {
-              "mode": "file",
-              "file": {},
-              "options": {
-                "file": {}
-              }
-            },
-            "url": {
-              "raw": "{{upload_url}}",
-              "host": ["{{upload_url}}"]
-            },
-            "description": "Upload your file directly to S3 using the presigned URL. Select a file in Body → Binary."
-          }
-        },
-        {
-          "name": "Confirm Upload",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"confirm_upload\",\n    \"file_id\": \"{{file_id}}\",\n    \"file_size\": 1024000\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Confirm that the file was successfully uploaded to S3."
-          }
-        }
-      ],
-      "description": "File upload operations - both base64 and presigned URL methods"
-    },
-    {
-      "name": "File Management",
-      "item": [
-        {
-          "name": "List All Files",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"list_files\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "List all files for the authenticated user."
-          }
-        },
-        {
-          "name": "Get File Metadata",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"get_file\",\n    \"file_id\": \"{{file_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Get detailed metadata for a specific file."
-          }
-        },
-        {
-          "name": "Generate Download URL",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"generate_download_url\",\n    \"file_id\": \"{{file_id}}\",\n    \"expiration\": 3600\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Generate a presigned URL for downloading a file."
-          }
-        }
-      ],
-      "description": "File listing and metadata operations"
-    },
-    {
-      "name": "File Download",
-      "item": [
-        {
-          "name": "Generate Download URL",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response contains download_url\", function () {",
-                  "    const jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('download_url');",
-                  "    pm.expect(jsonData).to.have.property('filename');",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    const response = pm.response.json();",
-                  "    console.log('✅ Download URL generated successfully!');",
-                  "    console.log('📁 File:', response.filename);",
-                  "    console.log('🔗 Download URL (expires in', response.expires_in, 'seconds):');",
-                  "    console.log(response.download_url);",
-                  "    console.log('💡 Copy the URL above and paste it in your browser to download');",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"generate_download_url\",\n    \"file_id\": \"{{file_id}}\",\n    \"expiration\": 3600\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Generate a presigned URL for downloading a file. The URL will be valid for the specified expiration time (default 1 hour)."
-          }
-        }
-      ],
-      "description": "File download operations"
-    },
-    {
-      "name": "Utility & Testing",
-      "item": [
-        {
-          "name": "Upload Sample Image (Base64)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "if (pm.response.code === 200) {",
-                  "    const response = pm.response.json();",
-                  "    pm.collectionVariables.set('file_id', response.file_id);",
-                  "    console.log('🖼️ Sample image uploaded successfully!');",
-                  "    console.log('📁 File ID:', response.file_id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"upload\",\n    \"file_content\": \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==\",\n    \"filename\": \"sample-1x1-pixel.png\",\n    \"content_type\": \"image/png\",\n    \"project_id\": \"{{project_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Upload a tiny sample PNG image (1x1 pixel) to test image file handling."
-          }
-        },
-        {
-          "name": "Upload JSON Data File",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const response = pm.response.json();",
-                  "    pm.collectionVariables.set('file_id', response.file_id);",
-                  "    console.log('📄 JSON file uploaded successfully!');",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"upload\",\n    \"file_content\": \"eyJuYW1lIjogIlNhbXBsZSBEYXRhIiwgInR5cGUiOiAidGVzdCIsICJkYXRhIjogeyJ1c2VyIjogInRlc3QtdXNlciIsICJ0aW1lc3RhbXAiOiAiMjAyNC0wMy0yMFQxMjowMDowMFoiLCAidmFsdWVzIjogWzEsIDIsIDMsIDQsIDVdfSwgIm1ldGFkYXRhIjogeyJ2ZXJzaW9uIjogIjEuMCIsICJlbnZpcm9ubWVudCI6ICJ0ZXN0aW5nIn19\",\n    \"filename\": \"sample-data.json\",\n    \"content_type\": \"application/json\",\n    \"project_id\": \"{{project_id}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Upload a sample JSON data file to test structured data handling."
-          }
-        },
-        {
-          "name": "Test Large File (Generate URL Only)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "if (pm.response.code === 200) {",
-                  "    const response = pm.response.json();",
-                  "    pm.collectionVariables.set('upload_url', response.upload_url);",
-                  "    pm.collectionVariables.set('file_id', response.file_id);",
-                  "    console.log('🎯 Large file upload URL ready for testing');",
-                  "    console.log('📋 Use the \"Upload to S3\" request next');",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{id_token}}"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"action\": \"generate_upload_url\",\n    \"filename\": \"large-test-file.zip\",\n    \"content_type\": \"application/zip\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 7200\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{api_url}}/files",
-              "host": ["{{api_url}}"],
-              "path": ["files"]
-            },
-            "description": "Generate upload URL for testing large file uploads (ZIP files, etc.)"
-          }
-        }
-      ],
-      "description": "Sample uploads and testing utilities"
-    }
-  ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "// Global pre-request script",
-          "console.log('🚀 AWS-Potato File Upload API Request');",
-          "console.log('📍 API URL:', pm.collectionVariables.get('api_url'));",
-          "",
-          "// Validate required variables",
-          "const apiUrl = pm.collectionVariables.get('api_url');",
-          "const idToken = pm.collectionVariables.get('id_token');",
-          "",
-          "if (!apiUrl || apiUrl === 'https://your-api-gateway-url.execute-api.us-west-2.amazonaws.com/prod') {",
-          "    console.warn('⚠️ Please set your actual API URL in collection variables');",
-          "}",
-          "",
-          "if (!idToken || idToken === 'your-cognito-id-token') {",
-          "    console.warn('⚠️ Please set your Cognito ID token in collection variables');",
-          "}"
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "// Global post-response script",
-          "if (pm.response.code !== 200) {",
-          "    console.error('❌ Request failed with status:', pm.response.code);",
-          "    console.error('📄 Response:', pm.response.text());",
-          "}"
-        ]
-      }
-    }
-  ]
+	"info": {
+		"_postman_id": "simplified-file-upload-collection",
+		"name": "AWS Potato - Simplified File Upload",
+		"description": "Simplified file upload API using presigned URLs only",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "simplified-upload"
+	},
+	"item": [
+		{
+			"name": "1. Generate Upload URL",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    if (response.upload_url) {",
+							"        pm.environment.set('upload_url', response.upload_url);",
+							"        pm.environment.set('file_id', response.file_id);",
+							"        pm.environment.set('s3_key', response.s3_key);",
+							"        console.log('Upload URL generated successfully');",
+							"        console.log('File ID:', response.file_id);",
+							"        console.log('Upload URL:', response.upload_url);",
+							"    }",
+							"} else {",
+							"    console.log('Failed to generate upload URL:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{id_token}}",
+						"description": "JWT token from Cognito"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"upload\",\n    \"filename\": \"test-file.txt\",\n    \"content_type\": \"text/plain\",\n    \"project_id\": \"optional-project-id\",\n    \"expiration\": 3600\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/file-upload",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"file-upload"
+					]
+				},
+				"description": "Generate a presigned URL for uploading a file to S3"
+			},
+			"response": []
+		},
+		{
+			"name": "2. Upload File to S3",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    console.log('File uploaded to S3 successfully');",
+							"} else {",
+							"    console.log('Failed to upload file to S3:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "text/plain"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "This is a test file content for the simplified upload process."
+				},
+				"url": {
+					"raw": "{{upload_url}}",
+					"host": [
+						"{{upload_url}}"
+					]
+				},
+				"description": "Upload the actual file content to S3 using the presigned URL"
+			},
+			"response": []
+		},
+		{
+			"name": "3. Confirm Upload",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    console.log('Upload confirmed successfully');",
+							"    console.log('File metadata:', JSON.stringify(response.file_metadata, null, 2));",
+							"} else {",
+							"    console.log('Failed to confirm upload:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{id_token}}",
+						"description": "JWT token from Cognito"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"confirm\",\n    \"file_id\": \"{{file_id}}\",\n    \"file_size\": 65\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/file-upload",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"file-upload"
+					]
+				},
+				"description": "Confirm that the file was successfully uploaded to S3"
+			},
+			"response": []
+		},
+		{
+			"name": "4. Get File Metadata",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    console.log('File metadata retrieved successfully');",
+							"    console.log('Metadata:', JSON.stringify(response, null, 2));",
+							"} else {",
+							"    console.log('Failed to get file metadata:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{id_token}}",
+						"description": "JWT token from Cognito"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"get\",\n    \"file_id\": \"{{file_id}}\"\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/file-upload",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"file-upload"
+					]
+				},
+				"description": "Get metadata for a specific file"
+			},
+			"response": []
+		},
+		{
+			"name": "5. List Files",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    console.log('Files listed successfully');",
+							"    console.log('Number of files:', response.files.length);",
+							"    response.files.forEach((file, index) => {",
+							"        console.log(`File ${index + 1}:`, file.original_filename, `(${file.file_size} bytes)`);",
+							"    });",
+							"} else {",
+							"    console.log('Failed to list files:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{id_token}}",
+						"description": "JWT token from Cognito"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"list\",\n    \"project_id\": \"optional-project-id\"\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/file-upload",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"file-upload"
+					]
+				},
+				"description": "List all files for the authenticated user, optionally filtered by project"
+			},
+			"response": []
+		},
+		{
+			"name": "6. Generate Download URL",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    const response = pm.response.json();",
+							"    if (response.download_url) {",
+							"        pm.environment.set('download_url', response.download_url);",
+							"        console.log('Download URL generated successfully');",
+							"        console.log('Download URL:', response.download_url);",
+							"        console.log('Filename:', response.filename);",
+							"    }",
+							"} else {",
+							"    console.log('Failed to generate download URL:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{id_token}}",
+						"description": "JWT token from Cognito"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"action\": \"download\",\n    \"file_id\": \"{{file_id}}\",\n    \"expiration\": 3600\n}"
+				},
+				"url": {
+					"raw": "{{api_url}}/file-upload",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"file-upload"
+					]
+				},
+				"description": "Generate a presigned URL for downloading a file from S3"
+			},
+			"response": []
+		},
+		{
+			"name": "7. Download File from S3",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 200) {",
+							"    console.log('File downloaded successfully');",
+							"    console.log('Content:', pm.response.text());",
+							"} else {",
+							"    console.log('Failed to download file:', pm.response.text());",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{download_url}}",
+					"host": [
+						"{{download_url}}"
+					]
+				},
+				"description": "Download the actual file content from S3 using the presigned URL"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Verify required environment variables",
+					"if (!pm.environment.get('api_url')) {",
+					"    console.log('WARNING: api_url environment variable not set');",
+					"}",
+					"if (!pm.environment.get('id_token')) {",
+					"    console.log('WARNING: id_token environment variable not set');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script for all requests",
+					"if (pm.response.code >= 400) {",
+					"    console.log('Error Response Body:', pm.response.text());",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "api_url",
+			"value": "https://your-api-gateway-url.execute-api.region.amazonaws.com/prod",
+			"description": "Base URL for the AWS API Gateway"
+		},
+		{
+			"key": "id_token",
+			"value": "your-cognito-id-token-here",
+			"description": "JWT ID token from Cognito authentication"
+		}
+	]
 } 

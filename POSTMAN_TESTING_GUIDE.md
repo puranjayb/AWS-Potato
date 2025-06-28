@@ -1,4 +1,4 @@
-# 📦 Postman Testing Guide for AWS-Potato File Upload API
+# 📦 Postman Testing Guide for AWS-Potato Simplified File Upload API
 
 ## 🚀 Quick Setup
 
@@ -8,14 +8,19 @@
 3. Drag and drop `AWS-Potato-FileUpload.postman_collection.json`
 4. Click **"Import"**
 
-### 2. Configure Variables
-After importing, click on the collection name and go to the **"Variables"** tab:
+### 2. Configure Environment Variables
+After importing, create or update environment variables:
 
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `api_url` | `https://your-api-gateway-url.execute-api.us-west-2.amazonaws.com/prod` | Your API Gateway URL |
 | `id_token` | `your-cognito-id-token` | Your authentication token |
-| `project_id` | `test-project-123` | Optional project ID |
+
+**To set variables:**
+1. Click the **environment dropdown** (top-right)
+2. Click **"Manage Environments"**
+3. Create new or edit existing environment
+4. Add the variables above
 
 ## 🔑 Getting Your Credentials
 
@@ -38,95 +43,129 @@ aws cloudformation describe-stacks --stack-name BackendStack --query "Stacks[0].
 4. Look for **Authorization header**: `Bearer <token>`
 5. Copy the token part (without "Bearer ")
 
-## 🧪 Testing Workflows
+## 🧪 Simplified Testing Workflow
 
-### Workflow 1: Small File Upload (≤4.5MB)
-**Perfect for testing and small files**
+**The new API uses only presigned URLs for all file uploads - no more base64 complexity!**
 
-1. **"Test Authentication"** - Verify your setup
-2. **"Base64 Upload"** - Upload a small test file
-3. **"List All Files"** - Verify file appears
-4. **"Get File Metadata"** - Check file details
-5. **"Generate Download URL"** - Get download link
+### Complete Upload Test (Recommended)
+Run these requests in order:
 
-### Workflow 2: Large File Upload (>4.5MB)
-**Recommended for production and large files**
-
-1. **"Test Authentication"** - Verify your setup
-2. **"Generate Presigned Upload URL"** - Get S3 upload URL
-3. **"Upload to S3"** - Upload your file directly to S3
-   - ⚠️ **Important**: Select file in Body → Binary
-   - ⚠️ **Important**: Content-Type must match step 2
-4. **"Confirm Upload"** - Mark upload as complete
-5. **"List All Files"** - Verify file appears
-6. **"Generate Download URL"** - Get download link
+1. **"1. Generate Upload URL"** - Get presigned S3 upload URL
+2. **"2. Upload File to S3"** - Upload your file directly to S3
+   - ⚠️ **Important**: Select file in Body → Binary or Raw
+   - ⚠️ **Important**: Content-Type must match step 1
+3. **"3. Confirm Upload"** - Mark upload as complete
+4. **"4. Get File Metadata"** - Verify file details
+5. **"5. List Files"** - See all your files
+6. **"6. Generate Download URL"** - Get download link
+7. **"7. Download File from S3"** - Test the download
 
 ## 📋 Request Details
 
 ### Authentication
-All requests except "Upload to S3" require:
+All requests to `/file-upload` endpoint require:
 ```
 Authorization: Bearer {{id_token}}
 Content-Type: application/json
 ```
 
-### Base64 Upload
+**Exception**: The actual S3 upload (step 2) requires NO authentication headers.
+
+### 1. Generate Upload URL
 ```json
 {
     "action": "upload",
-    "file_content": "SGVsbG8gV29ybGQ=",  // base64 encoded content
-    "filename": "test.txt",
-    "content_type": "text/plain",
-    "project_id": "optional"
-}
-```
-
-**To encode your file:**
-```bash
-# Mac/Linux
-base64 -i yourfile.txt
-
-# Or use online base64 encoder
-```
-
-### Generate Presigned URL
-```json
-{
-    "action": "generate_upload_url",
     "filename": "document.pdf",
     "content_type": "application/pdf",
-    "project_id": "optional",
+    "project_id": "optional-project-id",
     "expiration": 3600
 }
 ```
 
-### Upload to S3
-- **Method**: PUT
-- **URL**: Use `{{upload_url}}` from previous step
-- **Headers**: `Content-Type: application/pdf` (match your file type)
-- **Body**: Binary (select your file)
-- **No Authorization header needed!**
-
-### Confirm Upload
+**Response:**
 ```json
 {
-    "action": "confirm_upload",
+    "upload_url": "https://bucket.s3.amazonaws.com/...",
+    "file_id": "uuid-here",
+    "s3_key": "user123/2024/03/20/uuid_document.pdf",
+    "expires_in": 3600,
+    "method": "PUT",
+    "instructions": "Upload your file to the upload_url using PUT method..."
+}
+```
+
+### 2. Upload to S3
+- **Method**: PUT
+- **URL**: Use `{{upload_url}}` from step 1
+- **Headers**: `Content-Type: application/pdf` (match your file type)
+- **Body**: Binary (select your file) or Raw (paste content)
+- **No Authorization header needed!**
+
+### 3. Confirm Upload
+```json
+{
+    "action": "confirm",
     "file_id": "{{file_id}}",
-    "file_size": 1024000  // optional but recommended
+    "file_size": 1024000
+}
+```
+
+### 4. Get File Metadata
+```json
+{
+    "action": "get",
+    "file_id": "{{file_id}}"
+}
+```
+
+### 5. List Files
+```json
+{
+    "action": "list",
+    "project_id": "optional-project-filter"
+}
+```
+
+### 6. Generate Download URL
+```json
+{
+    "action": "download",
+    "file_id": "{{file_id}}",
+    "expiration": 3600
 }
 ```
 
 ## ✅ Expected Responses
 
-### Successful Upload
+### Upload URL Generated
 ```json
 {
-    "message": "File uploaded successfully",
-    "file_id": "uuid-here",
-    "original_filename": "test.txt",
-    "file_size": 43,
-    "s3_key": "user123/2024/03/20/uuid_test.txt",
-    "user_email": "user@example.com"
+    "upload_url": "https://aws-potato-bucket.s3.amazonaws.com/user123/2024/03/20/uuid_document.pdf?X-Amz-...",
+    "file_id": "123e4567-e89b-12d3-a456-426614174000",
+    "s3_key": "user123/2024/03/20/uuid_document.pdf",
+    "expires_in": 3600,
+    "method": "PUT",
+    "instructions": "Upload your file to the upload_url using PUT method with the correct Content-Type header"
+}
+```
+
+### Upload Confirmed
+```json
+{
+    "message": "File upload confirmed successfully",
+    "file_metadata": {
+        "file_id": "123e4567-e89b-12d3-a456-426614174000",
+        "original_filename": "document.pdf",
+        "s3_key": "user123/2024/03/20/uuid_document.pdf",
+        "file_size": 1024000,
+        "content_type": "application/pdf",
+        "project_id": "test-project",
+        "user_id": "user123",
+        "user_email": "user@example.com",
+        "upload_status": "uploaded",
+        "processing_status": "pending",
+        "created_at": "2024-03-20T12:00:00.000Z"
+    }
 }
 ```
 
@@ -135,12 +174,14 @@ base64 -i yourfile.txt
 {
     "files": [
         {
-            "file_id": "uuid",
-            "original_filename": "test.txt",
-            "file_size": 43,
-            "content_type": "text/plain",
+            "file_id": "123e4567-e89b-12d3-a456-426614174000",
+            "original_filename": "document.pdf",
+            "file_size": 1024000,
+            "content_type": "application/pdf",
+            "user_email": "user@example.com",
             "upload_status": "uploaded",
-            "created_at": "2024-03-20T12:00:00Z"
+            "processing_status": "pending",
+            "created_at": "2024-03-20T12:00:00.000Z"
         }
     ]
 }
@@ -149,9 +190,9 @@ base64 -i yourfile.txt
 ### Download URL
 ```json
 {
-    "download_url": "https://bucket.s3.amazonaws.com/path/file?X-Amz-...",
-    "file_id": "uuid",
-    "filename": "test.txt",
+    "download_url": "https://aws-potato-bucket.s3.amazonaws.com/user123/2024/03/20/uuid_document.pdf?X-Amz-...",
+    "file_id": "123e4567-e89b-12d3-a456-426614174000",
+    "filename": "document.pdf",
     "expires_in": 3600
 }
 ```
@@ -162,91 +203,186 @@ base64 -i yourfile.txt
 - ❌ **Problem**: Invalid or expired token
 - ✅ **Solution**: 
   1. Get fresh token from your auth flow
-  2. Update `id_token` variable
-  3. Run "Test Authentication" first
+  2. Update `id_token` environment variable
+  3. Ensure token is valid JWT format
+
+### 400 Bad Request - Invalid Action
+- ❌ **Problem**: Using old action names
+- ✅ **Solution**: Use new action names:
+  - `upload` (not `generate_upload_url`)
+  - `confirm` (not `confirm_upload`)
+  - `get` (not `get_file`)
+  - `list` (not `list_files`)
+  - `download` (not `generate_download_url`)
+
+### 400 Bad Request - Missing Fields
+- ❌ **Problem**: Missing required fields
+- ✅ **Solution**: 
+  - `upload` action requires `filename`
+  - `confirm` action requires `file_id`
+  - `get` action requires `file_id`
+  - `download` action requires `file_id`
 
 ### 403 Forbidden (S3 Upload)
 - ❌ **Problem**: Content-Type mismatch or expired URL
 - ✅ **Solution**: 
-  1. Ensure Content-Type header matches exactly
-  2. Generate new presigned URL if expired
+  1. Ensure Content-Type header matches exactly what was specified in step 1
+  2. Generate new presigned URL if expired (default 1 hour)
   3. Check file selection in Body → Binary
 
-### 400 Bad Request
-- ❌ **Problem**: Missing required fields or invalid data
-- ✅ **Solution**: 
-  1. Check request body matches examples
-  2. Verify all required fields are present
-  3. Check file_content is valid base64
-
-### CORS Errors
-- ❌ **Problem**: Should be fixed now
-- ✅ **Solution**: 
-  1. Ensure deployment completed
-  2. Check CloudWatch logs for errors
-  3. Verify API Gateway CORS configuration
-
-### File Not Found
+### 404 File Not Found
 - ❌ **Problem**: Using wrong file_id or file doesn't exist
 - ✅ **Solution**: 
-  1. Use "List All Files" to get valid file IDs
-  2. Ensure upload completed successfully
-  3. Check user ownership
+  1. Use `list` action to get valid file IDs
+  2. Ensure upload was confirmed successfully
+  3. Check user ownership (files are user-specific)
 
-## 🔧 Advanced Testing
+### CORS Errors (Browser Only)
+- ❌ **Problem**: Should be fixed with current deployment
+- ✅ **Solution**: 
+  1. Ensure latest deployment completed
+  2. Check CloudWatch logs for Lambda errors
+  3. Verify API Gateway CORS configuration
+
+## 🔧 Advanced Usage
+
+### File Size Limits
+- **Lambda**: No practical limit (using presigned URLs)
+- **S3**: Up to 5TB per file
+- **API Gateway**: 10MB payload limit (doesn't affect file uploads via presigned URLs)
 
 ### Custom File Types
-Update the Content-Type for different files:
-- **Images**: `image/jpeg`, `image/png`, `image/gif`
-- **Documents**: `application/pdf`, `application/msword`
-- **Archives**: `application/zip`, `application/x-tar`
-- **Data**: `application/json`, `text/csv`
-
-### Large File Testing
-1. Use "Generate Presigned Upload URL"
-2. Set longer expiration: `"expiration": 7200` (2 hours)
-3. Upload files up to 5GB (S3 limit)
+Update Content-Type for different files:
+- **Images**: `image/jpeg`, `image/png`, `image/gif`, `image/webp`
+- **Documents**: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+- **Archives**: `application/zip`, `application/x-tar`, `application/gzip`
+- **Data**: `application/json`, `text/csv`, `application/xml`
+- **Videos**: `video/mp4`, `video/quicktime`, `video/x-msvideo`
+- **Audio**: `audio/mpeg`, `audio/wav`, `audio/ogg`
 
 ### Project Organization
-- Set different `project_id` values to organize files
-- Use "List Files by Project" (custom request)
+- Use `project_id` to organize files by project
+- Filter file listings by project
+- Useful for multi-tenant applications
 
-## 📊 Performance Tips
+### Expiration Settings
+- **Upload URLs**: Default 1 hour, max 7 days
+- **Download URLs**: Default 1 hour, max 7 days
+- Set longer expiration for large files: `"expiration": 7200`
 
-1. **For files ≤4.5MB**: Use Base64 upload (simpler)
-2. **For files >4.5MB**: Use Presigned URL (required)
-3. **For production**: Always use Presigned URL (better performance)
-4. **Monitoring**: Check CloudWatch logs for detailed execution info
+## 📊 Performance & Best Practices
 
-## 🎯 Quick Test Commands
+### ✅ Do's
+1. **Always use presigned URLs** - More scalable and secure
+2. **Set appropriate expiration times** - Longer for large files
+3. **Include file_size in confirm** - Helps with validation
+4. **Use proper Content-Type** - Enables proper browser handling
+5. **Check upload_status** - Ensure files are fully uploaded before using
 
-### Test Authentication
+### ❌ Don'ts
+1. **Don't hardcode tokens** - Use environment variables
+2. **Don't ignore errors** - Check status codes and messages
+3. **Don't skip confirmation** - Always confirm uploads
+4. **Don't use expired URLs** - Generate fresh ones when needed
+
+## 🎯 Quick Test Commands (cURL)
+
+### Generate Upload URL
 ```bash
-curl -X POST "{{api_url}}/files" \
-  -H "Authorization: Bearer {{id_token}}" \
-  -H "Content-Type: application/json" \
-  -d '{"action": "list_files"}'
-```
-
-### Test Base64 Upload
-```bash
-curl -X POST "{{api_url}}/files" \
+curl -X POST "{{api_url}}/file-upload" \
   -H "Authorization: Bearer {{id_token}}" \
   -H "Content-Type: application/json" \
   -d '{
     "action": "upload",
-    "file_content": "SGVsbG8gV29ybGQ=",
     "filename": "test.txt",
     "content_type": "text/plain"
   }'
 ```
 
-## 📝 Notes
+### Upload File to S3
+```bash
+curl -X PUT "{{upload_url}}" \
+  -H "Content-Type: text/plain" \
+  -d "Hello World! This is test content."
+```
 
-- The collection automatically saves `file_id` and `upload_url` variables
-- Files are organized by user and date in S3: `user123/2024/03/20/uuid_filename.ext`
-- All responses include CORS headers for browser compatibility
-- File metadata includes upload status, processing status, and timestamps
-- Download URLs expire after specified time (default 1 hour)
+### Confirm Upload
+```bash
+curl -X POST "{{api_url}}/file-upload" \
+  -H "Authorization: Bearer {{id_token}}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "confirm",
+    "file_id": "{{file_id}}",
+    "file_size": 32
+  }'
+```
 
-**Happy Testing!** 🎉 
+### List Files
+```bash
+curl -X POST "{{api_url}}/file-upload" \
+  -H "Authorization: Bearer {{id_token}}" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "list"}'
+```
+
+## 📝 Collection Features
+
+The Postman collection includes:
+
+### Auto-Variable Management
+- `upload_url` - Automatically saved from "Generate Upload URL"
+- `file_id` - Automatically saved from "Generate Upload URL"
+- `download_url` - Automatically saved from "Generate Download URL"
+
+### Test Scripts
+- ✅ Status code validation
+- ✅ Response structure validation
+- ✅ Automatic variable extraction
+- ✅ Console logging for debugging
+
+### Request Examples
+- 📁 Complete workflow example
+- 📊 Response validation
+- 🔧 Error handling examples
+
+## 🔍 Debugging Tips
+
+### CloudWatch Logs
+1. Go to **AWS Console** → **CloudWatch** → **Log groups**
+2. Find `/aws/lambda/BackendStack-FileUploadFunction-...`
+3. View recent log streams for detailed execution info
+
+### Common Issues
+- **"User not authenticated"**: Check ID token format and expiration
+- **"Invalid action"**: Use new simplified action names
+- **"File too large"**: No size limit with presigned URLs
+- **"Access denied"**: Check user permissions and file ownership
+
+### Success Indicators
+- ✅ Upload URL generated with 200 status
+- ✅ S3 upload returns 200 status
+- ✅ Confirm returns file metadata
+- ✅ File appears in list with "uploaded" status
+
+## 🎉 What's New in Simplified API
+
+### ✨ Improvements
+- **Removed base64 complexity** - Only presigned URLs now
+- **Cleaner action names** - `upload`, `confirm`, `get`, `list`, `download`
+- **Better error messages** - More descriptive and helpful
+- **Simplified workflow** - Fewer steps, clearer process
+- **No file size limits** - Handle files of any size
+- **Better performance** - Direct S3 uploads
+
+### 🔄 Migration from Old API
+- Change endpoint: `/files` → `/file-upload`
+- Update action names:
+  - `generate_upload_url` → `upload`
+  - `confirm_upload` → `confirm`
+  - `get_file` → `get`
+  - `list_files` → `list`
+  - `generate_download_url` → `download`
+- Remove base64 upload requests (no longer supported)
+
+**Happy Testing with the Simplified API!** 🎉 
