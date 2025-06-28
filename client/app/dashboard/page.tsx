@@ -14,6 +14,7 @@ import {
   Activity,
   TrendingUp
 } from 'lucide-react'
+import { useLogout } from '@/hooks/useAuth'
 
 interface FloatingElementProps {
   delay: number
@@ -63,10 +64,6 @@ interface AuthStore {
 const useAuthStore = (): AuthStore => ({
   isAuthenticated: true
 })
-
-const useLogout = () => (): void => {
-  console.log('Logging out...')
-}
 
 export default function DashboardPage(): JSX.Element {
   const { isAuthenticated } = useAuthStore()

@@ -6,39 +6,16 @@ import { useRouter } from 'next/navigation'
 import { toast } from '../utils/toast'
 
 export const useSignup = () => {
-  const { login } = useAuthStore()
   const router = useRouter()
 
   return useMutation({
     mutationFn: (data: Omit<SignupData, 'action'>) => authAPI.signup(data),
-    onSuccess: (response) => {
-      // Check if signup was successful and tokens exist
-      if (response.tokens) {
-        // Store user data and tokens in the auth store
-        login(response.tokens.AccessToken)
-
-        // Show success message
-        toast.success('Signed up successfully!')
-
-        // Redirect to the dashboard
-        router.push('/dashboard')
-      } else {
-        // Signup failed
-        toast.error('Signup failed')
-      }
+    onSuccess: () => {
+      router.push('/login')
     },
-    onError: (error: unknown) => {
-      // Handle different types of errors
-      if (error instanceof Error) {
-        // Handle generic error
-        toast.error(error.message || 'An error occurred during signup')
-      } else if (typeof error === 'string') {
-        // Handle string error
-        toast.error(error || 'An error occurred during signup')
-      } else {
-        // Handle unknown error
-        toast.error('An unknown error occurred during signup')
-      }
+    onError: (error) => {
+      console.error('Signup error:', error)
+      toast.error(`Signup failed: ${error instanceof Error ? error.message : 'An error occurred'}`);
     },
   })
 }
@@ -65,18 +42,9 @@ export const useSignin = () => {
         toast.error('Authentication failed')
       }
     },
-    onError: (error: unknown) => {
-      // Handle different types of errors
-      if (error instanceof Error) {
-        // Handle generic error
-        toast.error(error.message || 'An error occurred during login')
-      } else if (typeof error === 'string') {
-        // Handle string error
-        toast.error(error || 'An error occurred during login')
-      } else {
-        // Handle unknown error
-        toast.error('An unknown error occurred during login')
-      }
+    onError: (error) => {
+      console.error('Signin error:', error)
+      toast.error(`Login failed: ${error instanceof Error ? error.message : 'An error occurred'}`);
     },
   })
 }

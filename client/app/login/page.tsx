@@ -143,10 +143,6 @@ export default function LoginPage(): JSX.Element {
           <Link
             href="/" 
             className="inline-flex items-center space-x-2 mb-8 group"
-            onClick={(e: React.MouseEvent): void => {
-              e.preventDefault()
-              // Handle navigation
-            }}
           >
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-blue-500/25">
               <Heart className="w-7 h-7 text-white animate-pulse" />
@@ -271,19 +267,6 @@ export default function LoginPage(): JSX.Element {
                     Remember me
                   </label>
                 </div>
-
-                <div className="text-sm">
-                  <a 
-                    href="#" 
-                    className="text-blue-400 hover:text-blue-300 transition-colors duration-300 hover:underline"
-                    onClick={(e: React.MouseEvent): void => {
-                      e.preventDefault()
-                      // Handle forgot password
-                    }}
-                  >
-                    Forgot your password?
-                  </a>
-                </div>
               </div>
 
               {/* Submit Button */}
@@ -311,16 +294,12 @@ export default function LoginPage(): JSX.Element {
             <div className="relative z-10 mt-6 text-center">
               <p className="text-white/70">
                 Do not have an account?{' '}
-                <a 
+                <Link
                   href="/signup" 
                   className="text-blue-400 hover:text-blue-300 font-medium transition-colors duration-300 hover:underline"
-                  onClick={(e: React.MouseEvent): void => {
-                    e.preventDefault()
-                    // Handle navigation to signup
-                  }}
                 >
                   Create one here
-                </a>
+                </Link>
               </p>
             </div>
           </div>
