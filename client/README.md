@@ -1,46 +1,86 @@
-# Getting Started with Create React App
+# HealthCare+ - Healthcare Management System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern healthcare management system built with Next.js, TypeScript, Tailwind CSS, Zustand, and React Query.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- 🏥 **Medicine Reminder System** - Never miss your medications
+- 🚨 **Emergency Services** - Quick access to emergency help
+- 🗺️ **Hospital Finder** - Locate nearby healthcare facilities
+- 👨‍👩‍👧‍👦 **Family Care** - Manage entire family's health records
+- 📊 **Medical Reports** - Access and organize medical documents
+- 🎯 **Personalized Dashboard** - Tailored healthcare insights
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Framework**: Next.js 14 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **State Management**: Zustand
+- **API Management**: React Query (@tanstack/react-query)
+- **Forms**: React Hook Form
+- **Icons**: Lucide React
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Getting Started
 
-### `npm test`
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd healthcare-app
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-### `npm run build`
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   Update the API URL in `.env.local` to match your backend endpoint.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+4. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Features in Detail
 
-### `npm run eject`
+### 🔐 Authentication
+- Secure signup and signin
+- JWT token management
+- Protected routes
+- Persistent login state
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### 🎨 UI/UX
+- Dark theme design
+- Responsive layout
+- Smooth animations
+- Healthcare-focused color scheme
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 📱 State Management
+- Zustand for global state
+- React Query for server state
+- Form state with React Hook Form
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Demo Credentials
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+For testing purposes:
+- **Username**: aryanraj1
+- **Password**: YourSecurePassword123!
 
-## Learn More
+## Contributing
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## License
+
+This project is licensed under the MIT License.
