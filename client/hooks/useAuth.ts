@@ -11,6 +11,7 @@ export const useSignup = () => {
   return useMutation({
     mutationFn: (data: Omit<SignupData, 'action'>) => authAPI.signup(data),
     onSuccess: () => {
+      toast.success('Signup successful! Please log in.')
       router.push('/login')
     },
     onError: (error) => {
