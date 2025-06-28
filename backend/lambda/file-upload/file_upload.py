@@ -7,6 +7,13 @@ import uuid
 from datetime import datetime
 from botocore.exceptions import ClientError
 
+# CORS headers for all responses
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+}
+
 def get_db_connection():
     """Get RDS connection using the secret from Secrets Manager"""
     client = boto3.client('secretsmanager')
@@ -270,6 +277,7 @@ def handler(event, context):
         if not user_id:
             return {
                 'statusCode': 401,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Unauthorized',
                     'message': 'User not authenticated'
@@ -286,6 +294,7 @@ def handler(event, context):
             if not file_content or not original_filename:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'file_content and filename are required'
@@ -299,6 +308,7 @@ def handler(event, context):
             except Exception as e:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Invalid file content',
                         'message': 'File content must be valid base64'
@@ -321,6 +331,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'message': 'File uploaded successfully',
                     'file_id': file_id,
@@ -338,6 +349,7 @@ def handler(event, context):
             if not file_id:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'file_id is required'
@@ -349,6 +361,7 @@ def handler(event, context):
             if not file_metadata:
                 return {
                     'statusCode': 404,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'File not found',
                         'message': 'File not found or access denied'
@@ -357,6 +370,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps(file_metadata)
             }
             
@@ -367,6 +381,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'files': files
                 })
@@ -382,6 +397,7 @@ def handler(event, context):
             if not original_filename:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'filename is required'
@@ -405,6 +421,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'upload_url': upload_url,
                     'file_id': file_id,
@@ -422,6 +439,7 @@ def handler(event, context):
             if not file_id:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'file_id is required'
@@ -438,6 +456,7 @@ def handler(event, context):
             if not success:
                 return {
                     'statusCode': 404,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'File not found',
                         'message': 'File not found or access denied'
@@ -449,6 +468,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'message': 'File upload confirmed successfully',
                     'file_metadata': file_metadata
@@ -463,6 +483,7 @@ def handler(event, context):
             if not file_id:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'file_id is required'
@@ -475,6 +496,7 @@ def handler(event, context):
             if not file_metadata:
                 return {
                     'statusCode': 404,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'File not found',
                         'message': 'File not found or access denied'
@@ -485,6 +507,7 @@ def handler(event, context):
             if file_metadata['upload_status'] != 'uploaded':
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'File not ready',
                         'message': 'File upload not completed yet'
@@ -496,6 +519,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'download_url': download_url,
                     'file_id': file_id,
@@ -507,6 +531,7 @@ def handler(event, context):
         else:
             return {
                 'statusCode': 400,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Invalid action',
                     'message': 'Supported actions: upload, get_file, list_files, generate_upload_url, confirm_upload, generate_download_url'
@@ -516,6 +541,7 @@ def handler(event, context):
     except Exception as e:
         return {
             'statusCode': 500,
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': 'Internal Server Error',
                 'message': str(e)

@@ -6,6 +6,13 @@ import uuid
 from datetime import datetime
 from botocore.exceptions import ClientError
 
+# CORS headers for all responses
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+}
+
 def get_db_connection():
     """Get RDS connection using the secret from Secrets Manager"""
     client = boto3.client('secretsmanager')
@@ -156,6 +163,7 @@ def handler(event, context):
             if not user_id or not email:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'user_id and email are required'
@@ -165,6 +173,7 @@ def handler(event, context):
             result = create_or_update_user_project(user_id, email, cognito_sub)
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps(result)
             }
             
@@ -174,6 +183,7 @@ def handler(event, context):
             if not user_id:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Missing required fields',
                         'message': 'user_id is required'
@@ -183,6 +193,7 @@ def handler(event, context):
             projects = get_user_projects(user_id)
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'projects': projects
                 })
@@ -191,6 +202,7 @@ def handler(event, context):
         else:
             return {
                 'statusCode': 400,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Invalid action',
                     'message': 'Supported actions: create_project, get_projects'
@@ -200,6 +212,7 @@ def handler(event, context):
     except Exception as e:
         return {
             'statusCode': 500,
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': 'Internal Server Error',
                 'message': str(e)

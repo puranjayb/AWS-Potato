@@ -4,6 +4,13 @@ import boto3
 import psycopg2
 from botocore.exceptions import ClientError
 
+# CORS headers for all responses
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+}
+
 def get_db_connection():
     """Get RDS connection using the secret from Secrets Manager"""
     client = boto3.client('secretsmanager')
@@ -125,6 +132,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'message': 'User created successfully',
                     'username': username,
@@ -161,6 +169,7 @@ def handler(event, context):
             
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'message': 'Authentication successful',
                     'tokens': auth_response['AuthenticationResult'],
@@ -171,6 +180,7 @@ def handler(event, context):
         else:
             return {
                 'statusCode': 400,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'message': 'Invalid action'
                 })
@@ -182,6 +192,7 @@ def handler(event, context):
         
         return {
             'statusCode': 400,
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': error_code,
                 'message': error_message
@@ -191,6 +202,7 @@ def handler(event, context):
     except Exception as e:
         return {
             'statusCode': 500,
+            'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': 'Internal Server Error',
                 'message': str(e)
