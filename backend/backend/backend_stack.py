@@ -4,13 +4,10 @@ from aws_cdk import (
     RemovalPolicy,
     aws_lambda as _lambda,
     aws_cognito as cognito,
-    aws_rds as rds,
-    aws_ec2 as ec2,
     aws_iam as iam,
     aws_apigateway as apigw,
     aws_s3 as s3,
     CfnOutput,
-    SecretValue,
 )
 from constructs import Construct
 
@@ -18,24 +15,6 @@ class BackendStack(Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
-
-        # Create VPC for RDS
-        vpc = ec2.Vpc(self, "AuthVPC",
-            max_azs=2,
-            nat_gateways=1,
-            subnet_configuration=[
-                ec2.SubnetConfiguration(
-                    name="Public",
-                    subnet_type=ec2.SubnetType.PUBLIC,
-                    cidr_mask=24
-                ),
-                ec2.SubnetConfiguration(
-                    name="Private",
-                    subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS,
-                    cidr_mask=24
-                )
-            ]
-        )
 
         # Create S3 bucket for file storage
         file_storage_bucket = s3.Bucket(
@@ -56,54 +35,12 @@ class BackendStack(Stack):
             ]
         )
 
-        # Create RDS instance
-        db_security_group = ec2.SecurityGroup(
-            self, "DBSecurityGroup",
-            vpc=vpc,
-            description="Security group for RDS instance",
-            allow_all_outbound=True
-        )
-        
-        db_security_group.add_ingress_rule(
-            peer=ec2.Peer.ipv4(vpc.vpc_cidr_block),
-            connection=ec2.Port.tcp(5432),
-            description="Allow PostgreSQL access from within VPC"
-        )
-
-        database = rds.DatabaseInstance(
-            self, "AuthDatabase",
-            engine=rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_15
-            ),
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE3,
-                ec2.InstanceSize.MICRO
-            ),
-            vpc=vpc,
-            security_groups=[db_security_group],
-            vpc_subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
-            ),
-            allocated_storage=20,
-            max_allocated_storage=100,
-            removal_policy=RemovalPolicy.DESTROY,
-            deletion_protection=False,
-            database_name="authdb",
-            credentials=rds.Credentials.from_generated_secret("postgres")
-        )
-
         # Create Cognito User Pool
         user_pool = cognito.UserPool(
-            self, "AuthUserPool",
-            user_pool_name="auth-user-pool",
-            self_sign_up_enabled=True,
-            sign_in_aliases=cognito.SignInAliases(
-                email=True,
-                username=True
-            ),
-            standard_attributes=cognito.StandardAttributes(
-                email=cognito.StandardAttribute(required=True, mutable=True)
-            ),
+            self, "PotatoUserPool",
+            user_pool_name="potato-user-pool",
+            sign_in_aliases=cognito.SignInAliases(username=True, email=True),
+            auto_verify=cognito.AutoVerifiedAttrs(email=True),
             password_policy=cognito.PasswordPolicy(
                 min_length=8,
                 require_lowercase=True,
@@ -111,80 +48,64 @@ class BackendStack(Stack):
                 require_digits=True,
                 require_symbols=True
             ),
-            account_recovery=cognito.AccountRecovery.EMAIL_ONLY
+            removal_policy=RemovalPolicy.DESTROY
         )
 
-        # Create User Pool Client
-        client = user_pool.add_client("auth-app-client",
+        # Create Cognito User Pool Client
+        client = cognito.UserPoolClient(
+            self, "PotatoUserPoolClient",
+            user_pool=user_pool,
             auth_flows=cognito.AuthFlow(
-                admin_user_password=True,  # Enables ADMIN_NO_SRP_AUTH flow
+                admin_user_password=True,
                 custom=True,
                 user_password=True,
                 user_srp=True
             ),
-            o_auth=cognito.OAuthSettings(
-                flows=cognito.OAuthFlows(
-                    authorization_code_grant=True
-                ),
-                scopes=[cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE],
-                callback_urls=["http://localhost:3000"]  # Update with your frontend URL
-            )
+            supported_identity_providers=[
+                cognito.UserPoolClientIdentityProvider.COGNITO
+            ]
         )
 
-        # Create Lambda function for authentication
+        # Neon DB connection details
+        neon_database_url = "postgresql://neondb_owner:npg_hNEs9K0fDUCR@ep-broad-term-a6a210d9-pooler.us-west-2.aws.neon.tech/neondb?sslmode=require"
+
+        # Create Auth Lambda
         auth_handler = _lambda.Function(
-            self, "AuthHandler",
+            self, "AuthFunction",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="auth.handler",
             code=_lambda.Code.from_asset("lambda/auth"),
             timeout=Duration.seconds(30),
-
             environment={
                 "USER_POOL_ID": user_pool.user_pool_id,
                 "CLIENT_ID": client.user_pool_client_id,
-                "DB_SECRET_ARN": database.secret.secret_arn,
-                "DB_NAME": "authdb"
-            },
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
-            )
+                "DATABASE_URL": neon_database_url
+            }
         )
 
-        # Create Lambda function for project management
+        # Create Projects Lambda
         projects_handler = _lambda.Function(
-            self, "ProjectsHandler",
+            self, "ProjectsFunction", 
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="projects.handler",
             code=_lambda.Code.from_asset("lambda/projects"),
             timeout=Duration.seconds(30),
             environment={
-                "DB_SECRET_ARN": database.secret.secret_arn,
-                "DB_NAME": "authdb"
-            },
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
-            )
+                "DATABASE_URL": neon_database_url
+            }
         )
 
-        # Create Lambda function for file upload
+        # Create File Upload Lambda
         file_upload_handler = _lambda.Function(
-            self, "FileUploadHandler",
+            self, "FileUploadFunction",
             runtime=_lambda.Runtime.PYTHON_3_9,
-            handler="file_upload.handler",
+            handler="file_upload.handler", 
             code=_lambda.Code.from_asset("lambda/file-upload"),
-            timeout=Duration.seconds(60),
-            memory_size=512,
+            timeout=Duration.seconds(30),
             environment={
-                "DB_SECRET_ARN": database.secret.secret_arn,
-                "DB_NAME": "authdb",
-                "S3_BUCKET_NAME": file_storage_bucket.bucket_name
-            },
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(
-                subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS
-            )
+                "S3_BUCKET_NAME": file_storage_bucket.bucket_name,
+                "DATABASE_URL": neon_database_url
+            }
         )
 
         # Update auth handler environment with projects Lambda ARN
@@ -192,11 +113,6 @@ class BackendStack(Stack):
 
         # Grant auth Lambda permission to invoke projects Lambda
         projects_handler.grant_invoke(auth_handler)
-
-        # Grant Lambda access to RDS secret
-        database.secret.grant_read(auth_handler)
-        database.secret.grant_read(projects_handler)
-        database.secret.grant_read(file_upload_handler)
 
         # Grant file upload Lambda access to S3 bucket
         file_storage_bucket.grant_read_write(file_upload_handler)
@@ -215,8 +131,6 @@ class BackendStack(Stack):
                 resources=[user_pool.user_pool_arn]
             )
         )
-
-
 
         # Create API Gateway
         api = apigw.RestApi(
@@ -240,7 +154,7 @@ class BackendStack(Stack):
         # Create API resources and methods
         auth_api = api.root.add_resource("auth")
         projects_api = api.root.add_resource("projects")
-        files_api = api.root.add_resource("files")
+        files_api = api.root.add_resource("file-upload")
 
         # Add methods to auth resource
         auth_api.add_method(
@@ -263,7 +177,7 @@ class BackendStack(Stack):
             }]
         )
 
-        # Add methods to projects resource
+        # Add methods to projects resource  
         projects_api.add_method(
             "POST",
             apigw.LambdaIntegration(
@@ -335,7 +249,7 @@ class BackendStack(Stack):
         )
 
         CfnOutput(
-            self, "DatabaseEndpoint", 
-            value=database.instance_endpoint.hostname,
-            description="RDS Database endpoint (private)"
+            self, "DatabaseInfo", 
+            value="Neon DB - neondb (Connected via environment variables)",
+            description="Database connection info"
         )
