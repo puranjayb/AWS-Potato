@@ -187,7 +187,7 @@ export default function SignupPage() {
 
         {/* Features */}
         <div className="text-center">
-          <p className="text-sm text-dark-muted mb-4">What you'll get:</p>
+          <p className="text-sm text-dark-muted mb-4">What you`ll get:</p>
           <div className="flex flex-wrap justify-center gap-4 text-sm text-dark-secondary">
             <span>• Medicine Reminders</span>
             <span>• Emergency Services</span>
