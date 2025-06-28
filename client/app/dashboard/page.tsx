@@ -15,6 +15,7 @@ import {
   TrendingUp
 } from 'lucide-react'
 import { useLogout } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
 
 interface FloatingElementProps {
   delay: number
@@ -45,6 +46,7 @@ interface DashboardFeature {
   buttonText: string
   buttonColor: string
   iconBg: string
+  onClick?: () => void
 }
 
 interface ActivityItem {
@@ -71,6 +73,7 @@ export default function DashboardPage(): JSX.Element {
   const [isVisible, setIsVisible] = useState<boolean>(false)
   const [mousePosition, setMousePosition] = useState<MousePosition>({ x: 0, y: 0 })
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const router = useRouter()
 
   useEffect((): (() => void) => {
     // Simulate auth check
@@ -187,7 +190,8 @@ export default function DashboardPage(): JSX.Element {
       description: 'Access and manage all your medical reports and test results.',
       buttonText: 'View Reports',
       buttonColor: 'from-green-500 to-emerald-600',
-      iconBg: 'from-green-500 to-emerald-600'
+      iconBg: 'from-green-500 to-emerald-600',
+      onClick: (): void => router.push('/reports')
     },
     {
       id: 'settings',
@@ -230,10 +234,6 @@ export default function DashboardPage(): JSX.Element {
 
   const handleLogout = (): void => {
     logout()
-  }
-
-  const handleFeatureClick = (featureId: string): void => {
-    console.log(`Navigating to ${featureId}`)
   }
 
   if (isLoading || !isAuthenticated) {
@@ -377,7 +377,7 @@ export default function DashboardPage(): JSX.Element {
               key={feature.id}
               className="group relative p-6 rounded-2xl backdrop-blur-lg bg-white/10 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105 hover:shadow-2xl cursor-pointer"
               style={{ animationDelay: `${800 + index * 100}ms` }}
-              onClick={(): void => handleFeatureClick(feature.id)}
+              onClick={() => feature.onClick ? feature.onClick() : console.log(`Navigating to ${feature.id}`) }
             >
               <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-white/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               
@@ -400,7 +400,6 @@ export default function DashboardPage(): JSX.Element {
                 </p>
                 <button 
                   className={`w-full py-3 text-white rounded-lg bg-gradient-to-r ${feature.buttonColor} hover:shadow-lg transition-all duration-300 hover:scale-105 transform font-medium`}
-                  type="button"
                 >
                   {feature.buttonText}
                 </button>
