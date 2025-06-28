@@ -183,9 +183,10 @@ def list_files(user_id, project_id=None):
         conn.close()
 
 def generate_presigned_upload_url(s3_key, content_type, expiration=3600):
-    """Generate presigned URL for direct S3 upload"""
+    """Generate presigned URL for direct S3 upload with CORS support"""
     s3_client = boto3.client('s3')
     try:
+        # Generate presigned URL with CORS headers for browser uploads
         response = s3_client.generate_presigned_url(
             'put_object',
             Params={
@@ -262,31 +263,81 @@ def update_file_status(file_id, user_id, file_size=None, upload_status=None, pro
     finally:
         conn.close()
 
+def extract_user_info(event):
+    """Extract user information from the Lambda event"""
+    # Debug: Print the entire event structure (remove in production)
+    print(f"Event structure: {json.dumps(event, default=str)}")
+    
+    # Try multiple ways to extract user info from Cognito authorizer
+    user_id = None
+    user_email = None
+    
+    # Method 1: Check requestContext.authorizer.claims (most common)
+    try:
+        claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+        if claims:
+            user_id = claims.get('cognito:username') or claims.get('sub')
+            user_email = claims.get('email')
+            print(f"Method 1 - Claims: {claims}")
+    except Exception as e:
+        print(f"Method 1 failed: {e}")
+    
+    # Method 2: Check requestContext.authorizer directly
+    if not user_id:
+        try:
+            authorizer = event.get('requestContext', {}).get('authorizer', {})
+            user_id = authorizer.get('principalId') or authorizer.get('sub')
+            user_email = authorizer.get('email')
+            print(f"Method 2 - Authorizer: {authorizer}")
+        except Exception as e:
+            print(f"Method 2 failed: {e}")
+    
+    # Method 3: Check headers for direct token (fallback)
+    if not user_id:
+        try:
+            headers = event.get('headers', {})
+            auth_header = headers.get('Authorization') or headers.get('authorization')
+            if auth_header and auth_header.startswith('Bearer '):
+                # This would require JWT decoding which we'll skip for now
+                print("Found bearer token but not decoding it here")
+        except Exception as e:
+            print(f"Method 3 failed: {e}")
+    
+    print(f"Extracted user_id: {user_id}, user_email: {user_email}")
+    return user_id, user_email
+
 def handler(event, context):
     """Main Lambda handler"""
     try:
+        # Debug: Log the entire event for troubleshooting
+        print(f"Received event: {json.dumps(event, default=str)}")
+        
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         action = body.get('action')
         
-        # Get user info from Cognito claims (set by API Gateway authorizer)
-        claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
-        user_id = claims.get('cognito:username') or claims.get('sub')
-        user_email = claims.get('email')
+        print(f"Requested action: {action}")
+        
+        # Extract user info using improved method
+        user_id, user_email = extract_user_info(event)
         
         if not user_id:
+            print("Authentication failed - no user_id found")
             return {
                 'statusCode': 401,
                 'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Unauthorized',
-                    'message': 'User not authenticated'
+                    'message': 'User not authenticated - no user ID found',
+                    'debug_info': 'Check Authorization header and Cognito configuration'
                 })
             }
         
+        print(f"Authenticated user: {user_id}, email: {user_email}")
+        
         if action == 'upload':
-            # Handle file upload
-            file_content = body.get('file_content')  # Base64 encoded
+            # Handle file upload via base64
+            file_content = body.get('file_content')
             original_filename = body.get('filename')
             content_type = body.get('content_type', 'application/octet-stream')
             project_id = body.get('project_id')
@@ -301,24 +352,46 @@ def handler(event, context):
                     })
                 }
             
-            # Decode base64 file content
+            # Validate and decode base64 file content
             try:
+                # Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                if ',' in file_content and file_content.startswith('data:'):
+                    file_content = file_content.split(',', 1)[1]
+                
+                # Decode base64
                 file_data = base64.b64decode(file_content)
                 file_size = len(file_data)
+                
+                # Check file size limit (Lambda payload is ~6MB, so ~4.5MB for base64)
+                if file_size > 4.5 * 1024 * 1024:  # 4.5MB
+                    return {
+                        'statusCode': 413,
+                        'headers': CORS_HEADERS,
+                        'body': json.dumps({
+                            'error': 'File too large',
+                            'message': 'File size exceeds 4.5MB limit for base64 upload. Use presigned URL upload instead.'
+                        })
+                    }
+                    
             except Exception as e:
+                print(f"Base64 decode error: {str(e)}")
                 return {
                     'statusCode': 400,
                     'headers': CORS_HEADERS,
                     'body': json.dumps({
                         'error': 'Invalid file content',
-                        'message': 'File content must be valid base64'
+                        'message': f'File content must be valid base64: {str(e)}'
                     })
                 }
             
             # Generate unique file ID and S3 key
             file_id = str(uuid.uuid4())
             timestamp = datetime.now().strftime('%Y/%m/%d')
-            s3_key = f"{user_id}/{timestamp}/{file_id}_{original_filename}"
+            # Sanitize filename for S3
+            safe_filename = original_filename.replace(' ', '_').replace('/', '_')
+            s3_key = f"{user_id}/{timestamp}/{file_id}_{safe_filename}"
+            
+            print(f"Uploading file {original_filename} ({file_size} bytes) to S3 key: {s3_key}")
             
             # Upload to S3
             upload_to_s3(file_data, s3_key, content_type)
@@ -328,6 +401,8 @@ def handler(event, context):
                 file_id, original_filename, s3_key, 
                 file_size, content_type, project_id, user_id, user_email
             )
+            
+            print(f"File uploaded successfully with database ID: {db_id}")
             
             return {
                 'statusCode': 200,
@@ -407,7 +482,9 @@ def handler(event, context):
             # Generate unique file ID and S3 key
             file_id = str(uuid.uuid4())
             timestamp = datetime.now().strftime('%Y/%m/%d')
-            s3_key = f"{user_id}/{timestamp}/{file_id}_{original_filename}"
+            # Sanitize filename for S3
+            safe_filename = original_filename.replace(' ', '_').replace('/', '_')
+            s3_key = f"{user_id}/{timestamp}/{file_id}_{safe_filename}"
             
             # Generate presigned URL
             upload_url = generate_presigned_upload_url(s3_key, content_type, expiration)
@@ -427,7 +504,8 @@ def handler(event, context):
                     'file_id': file_id,
                     's3_key': s3_key,
                     'expires_in': expiration,
-                    'method': 'PUT'
+                    'method': 'PUT',
+                    'instructions': 'Upload the file to upload_url using PUT method with Content-Type header'
                 })
             }
             
@@ -539,11 +617,16 @@ def handler(event, context):
             }
             
     except Exception as e:
+        print(f"Unexpected error in handler: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
         return {
             'statusCode': 500,
             'headers': CORS_HEADERS,
             'body': json.dumps({
                 'error': 'Internal Server Error',
-                'message': str(e)
+                'message': str(e),
+                'debug_info': 'Check CloudWatch logs for detailed error information'
             })
         } 

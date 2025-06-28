@@ -45,7 +45,15 @@ class BackendStack(Stack):
             encryption=s3.BucketEncryption.S3_MANAGED,
             block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy=RemovalPolicy.DESTROY,
-            auto_delete_objects=True
+            auto_delete_objects=True,
+            cors=[
+                s3.CorsRule(
+                    allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST, s3.HttpMethods.DELETE, s3.HttpMethods.HEAD],
+                    allowed_origins=["*"],  # In production, specify your frontend domain
+                    allowed_headers=["*"],
+                    max_age=3600
+                )
+            ]
         )
 
         # Create RDS instance
