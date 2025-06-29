@@ -3,317 +3,769 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWS Potato - Simplified File Upload Test</title>
+    <title>AWS-Potato File Upload Test</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
         }
-
+        
         .container {
+            max-width: 800px;
+            margin: 0 auto;
             background: white;
             border-radius: 15px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            padding: 40px;
-            max-width: 800px;
-            width: 100%;
+            overflow: hidden;
         }
-
-        h1 {
-            color: #333;
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
             text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
         }
-
-        .config-section {
-            background: #f8f9fa;
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
             padding: 20px;
+            border: 2px solid #e1e5e9;
             border-radius: 10px;
-            margin-bottom: 30px;
-            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
         }
-
-        .config-section h2 {
-            color: #555;
+        
+        .section:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+        }
+        
+        .section h3 {
+            color: #333;
             margin-bottom: 15px;
-            font-size: 1.2em;
+            font-size: 1.3rem;
         }
-
+        
         .form-group {
             margin-bottom: 20px;
         }
-
+        
         label {
             display: block;
             margin-bottom: 8px;
-            color: #555;
             font-weight: 600;
+            color: #555;
         }
-
-        input, select {
+        
+        input, select, textarea {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e0e0e0;
+            border: 2px solid #e1e5e9;
             border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s ease;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
         }
-
-        input:focus, select:focus {
+        
+        input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-
-        .upload-section {
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            border: 2px dashed #ddd;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .upload-section:hover {
-            border-color: #667eea;
-            background: #f8f9ff;
-        }
-
-        .upload-section h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            margin-bottom: 15px;
-        }
-
-        .file-input-wrapper input[type=file] {
-            position: absolute;
-            left: -9999px;
-        }
-
-        .file-input-label {
-            display: inline-block;
-            padding: 12px 24px;
-            background: #667eea;
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-
-        .file-input-label:hover {
-            background: #5a6fd8;
-            transform: translateY(-2px);
-        }
-
-        .selected-file {
-            margin-top: 10px;
-            padding: 10px;
-            background: #e8f5e8;
-            border-radius: 8px;
-            color: #2d5a3d;
-        }
-
-        .button {
+        
+        .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 15px 30px;
+            padding: 12px 24px;
             border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
+            font-size: 1rem;
             font-weight: 600;
+            cursor: pointer;
             transition: all 0.3s ease;
-            margin: 10px 5px;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        }
-
-        .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .actions {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
-        }
-
-        .results {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
-            border-left: 4px solid #28a745;
-        }
-
-        .results h3 {
-            color: #28a745;
-            margin-bottom: 15px;
-        }
-
-        .result-item {
-            background: white;
-            margin: 10px 0;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-        }
-
-        .result-item h4 {
-            color: #667eea;
+            margin-right: 10px;
             margin-bottom: 10px;
         }
-
-        .result-content {
-            background: #f5f5f5;
-            padding: 12px;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            white-space: pre-wrap;
-            max-height: 200px;
-            overflow-y: auto;
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
-
-        .success { color: #28a745; }
-        .error { color: #dc3545; }
-        .warning { color: #ffc107; }
-        .info { color: #17a2b8; }
-
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+        
         .progress {
-            margin: 20px 0;
-        }
-
-        .progress-bar {
             width: 100%;
             height: 8px;
-            background: #e0e0e0;
+            background: #e1e5e9;
             border-radius: 4px;
             overflow: hidden;
+            margin: 15px 0;
         }
-
-        .progress-fill {
+        
+        .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            width: 0%;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border-radius: 4px;
             transition: width 0.3s ease;
+            width: 0%;
         }
-
-        .step {
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 6px;
-            border-left: 4px solid #ccc;
+        
+        .log {
+            background: #f7fafc;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
-
-        .step.active { border-color: #667eea; background: #f0f4ff; }
-        .step.success { border-color: #28a745; background: #f0fff4; }
-        .step.error { border-color: #dc3545; background: #fff5f5; }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .log-success {
+            background: #f0fff4;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+        
+        .log-error {
+            background: #fff5f5;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+        
+        .log-info {
+            background: #ebf8ff;
+            color: #2a4365;
+            border-left: 4px solid #4299e1;
+        }
+        
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .file-item:hover {
+            background: #f7fafc;
+            border-color: #667eea;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .file-meta {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-warning {
+            background: #fffaf0;
+            color: #744210;
+            border: 1px solid #fbd38d;
+        }
+        
+        .cors-debug {
+            background: #f0f8ff;
+            border: 1px solid #bee3f8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .cors-debug h4 {
+            color: #2a4365;
+            margin-bottom: 10px;
+        }
+        
+        .cors-debug ul {
+            margin-left: 20px;
+            color: #2d3748;
+        }
+        
+        .cors-debug li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🥔 AWS Potato - Simplified File Upload Test</h1>
+        <div class="header">
+            <h1>🥔 AWS-Potato</h1>
+            <p>File Upload & Download Test Interface</p>
+        </div>
         
-        <div class="config-section">
-            <h2>⚙️ Configuration</h2>
-            <div class="form-group">
-                <label for="apiUrl">API Gateway URL:</label>
-                <input type="text" id="apiUrl" placeholder="https://your-api-gateway-url.execute-api.region.amazonaws.com/prod" />
+        <div class="content">
+            <div class="alert alert-warning">
+                <strong>⚠️ Setup Required:</strong> Please update the API_BASE_URL and AUTH_TOKEN variables in the JavaScript section below with your actual values.
             </div>
-            <div class="form-group">
-                <label for="idToken">Cognito ID Token:</label>
-                <input type="text" id="idToken" placeholder="your-cognito-id-token-here" />
+            
+            <!-- Configuration Section -->
+            <div class="section">
+                <h3>⚙️ Configuration</h3>
+                <div class="form-group">
+                    <label for="apiUrl">API Base URL:</label>
+                    <input type="text" id="apiUrl" placeholder="https://your-api-gateway-url.amazonaws.com/prod" />
+                </div>
+                <div class="form-group">
+                    <label for="authToken">Auth Token:</label>
+                    <input type="password" id="authToken" placeholder="Your JWT token from signin" />
+                </div>
+                <button class="btn" onclick="saveConfig()">💾 Save Configuration</button>
+                <button class="btn btn-secondary" onclick="testConnection()">🔗 Test Connection</button>
             </div>
-            <div class="form-group">
-                <label for="projectId">Project ID (optional):</label>
-                <input type="text" id="projectId" placeholder="test-project-123" />
+            
+            <!-- File Upload Section -->
+            <div class="section">
+                <h3>📤 File Upload</h3>
+                <div class="form-group">
+                    <label for="fileInput">Select File:</label>
+                    <input type="file" id="fileInput" />
+                </div>
+                <div class="form-group">
+                    <label for="projectId">Project ID (Optional):</label>
+                    <input type="text" id="projectId" value="test-project" />
+                </div>
+                <button class="btn" onclick="uploadFile()">🚀 Upload File</button>
+                <div class="progress" id="uploadProgress" style="display: none;">
+                    <div class="progress-bar" id="uploadProgressBar"></div>
+                </div>
             </div>
-        </div>
-
-        <div class="upload-section">
-            <h3>📁 File Upload</h3>
-            <div class="file-input-wrapper">
-                <input type="file" id="fileInput" />
-                <label for="fileInput" class="file-input-label">Choose File</label>
+            
+            <!-- File Management Section -->
+            <div class="section">
+                <h3>📁 File Management</h3>
+                <button class="btn btn-secondary" onclick="listFiles()">📋 List Files</button>
+                <button class="btn btn-danger" onclick="clearFileList()">🗑️ Clear List</button>
+                <div id="fileList" class="file-list"></div>
             </div>
-            <div id="selectedFile" class="selected-file" style="display: none;"></div>
-        </div>
-
-        <div class="actions">
-            <button class="button" onclick="testCompleteWorkflow()" id="uploadBtn">🚀 Test Complete Workflow</button>
-            <button class="button" onclick="listFiles()">📋 List Files</button>
-            <button class="button" onclick="clearResults()">🗑️ Clear Results</button>
-        </div>
-
-        <div class="progress" id="progressContainer" style="display: none;">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
+            
+            <!-- Download Testing Section -->
+            <div class="section">
+                <h3>📥 Download Testing</h3>
+                <div class="form-group">
+                    <label for="downloadFileId">File ID for Download Test:</label>
+                    <input type="text" id="downloadFileId" placeholder="Enter file ID to test download" />
+                </div>
+                <button class="btn" onclick="testDownloadUrl()">🔗 Generate Download URL</button>
+                <button class="btn btn-secondary" onclick="testFetchDownload()">📥 Test Fetch Download</button>
+                <button class="btn btn-secondary" onclick="testDirectDownload()">⬇️ Test Direct Download</button>
+                
+                <div class="cors-debug">
+                    <h4>🛠️ CORS Download Methods:</h4>
+                    <ul>
+                        <li><strong>Direct Download:</strong> Opens download in new tab (bypasses CORS)</li>
+                        <li><strong>Fetch Download:</strong> Uses JavaScript fetch (requires CORS)</li>
+                        <li><strong>Anchor Download:</strong> Creates downloadable link (bypasses CORS)</li>
+                    </ul>
+                </div>
             </div>
-            <div id="progressText">Starting upload...</div>
-        </div>
-
-        <div id="uploadSteps" style="display: none;">
-            <h3>📊 Upload Progress</h3>
-            <div class="step" id="step1">1️⃣ Generate Upload URL</div>
-            <div class="step" id="step2">2️⃣ Upload File to S3</div>
-            <div class="step" id="step3">3️⃣ Confirm Upload</div>
-            <div class="step" id="step4">4️⃣ Verify File</div>
-        </div>
-
-        <div class="results" id="results" style="display: none;">
-            <h3>📄 Results</h3>
-            <div id="resultContent"></div>
+            
+            <!-- Activity Log -->
+            <div class="section">
+                <h3>📊 Activity Log</h3>
+                <button class="btn btn-danger btn-small" onclick="clearLog()">Clear Log</button>
+                <div id="activityLog" class="log"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        let currentFileId = null;
-
-        // File selection handler
-        document.getElementById('fileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            const selectedFileDiv = document.getElementById('selectedFile');
-            
-            if (file) {
-                selectedFileDiv.style.display = 'block';
-                selectedFileDiv.innerHTML = `
-                    <strong>Selected:</strong> ${file.name}<br>
-                    <strong>Size:</strong> ${formatFileSize(file.size)}<br>
-                    <strong>Type:</strong> ${file.type || 'Unknown'}
-                `;
-            } else {
-                selectedFileDiv.style.display = 'none';
-            }
+        // Configuration
+        let API_BASE_URL = localStorage.getItem('apiBaseUrl') || '';
+        let AUTH_TOKEN = localStorage.getItem('authToken') || '';
+        
+        // Load saved configuration
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('apiUrl').value = API_BASE_URL;
+            document.getElementById('authToken').value = AUTH_TOKEN;
         });
-
+        
+        function saveConfig() {
+            API_BASE_URL = document.getElementById('apiUrl').value;
+            AUTH_TOKEN = document.getElementById('authToken').value;
+            
+            localStorage.setItem('apiBaseUrl', API_BASE_URL);
+            localStorage.setItem('authToken', AUTH_TOKEN);
+            
+            log('Configuration saved successfully!', 'success');
+        }
+        
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('activityLog');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<strong>${timestamp}:</strong> ${message}`;
+            logElement.appendChild(entry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('activityLog').innerHTML = '';
+        }
+        
+        async function testConnection() {
+            if (!API_BASE_URL || !AUTH_TOKEN) {
+                log('Please configure API URL and Auth Token first', 'error');
+                return;
+            }
+            
+            try {
+                log('Testing API connection...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'list'
+                    })
+                });
+                
+                if (response.ok) {
+                    log('✅ API connection successful!', 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ API connection failed: ${response.status} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Connection error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const projectId = document.getElementById('projectId').value;
+            
+            if (!fileInput.files[0]) {
+                log('Please select a file first', 'error');
+                return;
+            }
+            
+            if (!API_BASE_URL || !AUTH_TOKEN) {
+                log('Please configure API URL and Auth Token first', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            log(`Starting upload for: ${file.name} (${file.size} bytes)`, 'info');
+            
+            try {
+                // Step 1: Get upload URL
+                log('🔄 Requesting upload URL...', 'info');
+                const uploadResponse = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'upload',
+                        filename: file.name,
+                        project_id: projectId || undefined
+                    })
+                });
+                
+                if (!uploadResponse.ok) {
+                    const errorText = await uploadResponse.text();
+                    throw new Error(`Upload URL request failed: ${uploadResponse.status} - ${errorText}`);
+                }
+                
+                const uploadData = await uploadResponse.json();
+                log(`✅ Upload URL generated! File ID: ${uploadData.file_id}`, 'success');
+                
+                // Step 2: Upload to S3
+                log('🔄 Uploading to S3...', 'info');
+                document.getElementById('uploadProgress').style.display = 'block';
+                
+                const s3Response = await fetch(uploadData.upload_url, {
+                    method: 'PUT',
+                    body: file
+                });
+                
+                if (!s3Response.ok) {
+                    const errorText = await s3Response.text();
+                    throw new Error(`S3 upload failed: ${s3Response.status} - ${errorText}`);
+                }
+                
+                log('✅ File uploaded to S3 successfully!', 'success');
+                
+                // Step 3: Confirm upload
+                log('🔄 Confirming upload...', 'info');
+                const confirmResponse = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'confirm',
+                        file_id: uploadData.file_id,
+                        file_size: file.size
+                    })
+                });
+                
+                if (!confirmResponse.ok) {
+                    const errorText = await confirmResponse.text();
+                    throw new Error(`Upload confirmation failed: ${confirmResponse.status} - ${errorText}`);
+                }
+                
+                log('🎉 Upload completed successfully!', 'success');
+                document.getElementById('downloadFileId').value = uploadData.file_id;
+                
+                // Auto-refresh file list
+                setTimeout(listFiles, 1000);
+                
+            } catch (error) {
+                log(`❌ Upload failed: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('uploadProgress').style.display = 'none';
+                document.getElementById('uploadProgressBar').style.width = '0%';
+            }
+        }
+        
+        async function listFiles() {
+            if (!API_BASE_URL || !AUTH_TOKEN) {
+                log('Please configure API URL and Auth Token first', 'error');
+                return;
+            }
+            
+            try {
+                log('🔄 Loading file list...', 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'list'
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`List files failed: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                const files = data.files || [];
+                
+                log(`✅ Found ${files.length} files`, 'success');
+                
+                const fileListElement = document.getElementById('fileList');
+                if (files.length === 0) {
+                    fileListElement.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No files found</p>';
+                    return;
+                }
+                
+                fileListElement.innerHTML = files.map(file => `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <div class="file-name">${file.original_filename}</div>
+                            <div class="file-meta">
+                                Size: ${formatFileSize(file.file_size)} | 
+                                Status: ${file.upload_status} | 
+                                Uploaded: ${new Date(file.created_at).toLocaleString()}
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="btn btn-small btn-secondary" onclick="downloadFile('${file.file_id}', '${file.original_filename}')">📥 Download</button>
+                            <button class="btn btn-small" onclick="copyFileId('${file.file_id}')">📋 Copy ID</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                log(`❌ Failed to load file list: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testDownloadUrl() {
+            const fileId = document.getElementById('downloadFileId').value;
+            
+            if (!fileId) {
+                log('Please enter a file ID', 'error');
+                return;
+            }
+            
+            if (!API_BASE_URL || !AUTH_TOKEN) {
+                log('Please configure API URL and Auth Token first', 'error');
+                return;
+            }
+            
+            try {
+                log(`🔄 Generating download URL for file: ${fileId}`, 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'download',
+                        file_id: fileId
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Download URL generation failed: ${response.status} - ${errorText}`);
+                }
+                
+                const data = await response.json();
+                log(`✅ Download URL generated successfully!`, 'success');
+                log(`📎 URL: ${data.download_url.substring(0, 100)}...`, 'info');
+                log(`⏰ Expires in: ${data.expires_in} seconds`, 'info');
+                
+                if (data.cors_note) {
+                    log(`💡 CORS Note: ${data.cors_note}`, 'info');
+                }
+                
+            } catch (error) {
+                log(`❌ Failed to generate download URL: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testFetchDownload() {
+            const fileId = document.getElementById('downloadFileId').value;
+            
+            if (!fileId) {
+                log('Please enter a file ID', 'error');
+                return;
+            }
+            
+            try {
+                log(`🔄 Testing fetch download for file: ${fileId}`, 'info');
+                
+                // First get download URL
+                const urlResponse = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'download',
+                        file_id: fileId
+                    })
+                });
+                
+                if (!urlResponse.ok) {
+                    throw new Error(`Download URL generation failed: ${urlResponse.status}`);
+                }
+                
+                const urlData = await urlResponse.json();
+                log(`✅ Download URL obtained`, 'success');
+                
+                // Now try to fetch the file
+                log(`🔄 Attempting fetch download...`, 'info');
+                const fileResponse = await fetch(urlData.download_url);
+                
+                if (!fileResponse.ok) {
+                    throw new Error(`Fetch download failed: ${fileResponse.status}`);
+                }
+                
+                const blob = await fileResponse.blob();
+                log(`✅ Fetch download successful! Downloaded ${blob.size} bytes`, 'success');
+                
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = urlData.filename || 'downloaded_file';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                log(`📥 File download initiated: ${urlData.filename}`, 'success');
+                
+            } catch (error) {
+                log(`❌ Fetch download failed: ${error.message}`, 'error');
+                log(`💡 This might be a CORS issue. Try Direct Download instead.`, 'info');
+            }
+        }
+        
+        async function testDirectDownload() {
+            const fileId = document.getElementById('downloadFileId').value;
+            
+            if (!fileId) {
+                log('Please enter a file ID', 'error');
+                return;
+            }
+            
+            try {
+                log(`🔄 Testing direct download for file: ${fileId}`, 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'download',
+                        file_id: fileId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Download URL generation failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log(`✅ Opening direct download...`, 'success');
+                
+                // Open in new tab - this bypasses CORS
+                window.open(data.download_url, '_blank');
+                
+                log(`📥 Direct download opened in new tab`, 'success');
+                
+            } catch (error) {
+                log(`❌ Direct download failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function downloadFile(fileId, filename) {
+            try {
+                log(`🔄 Downloading: ${filename}`, 'info');
+                
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AUTH_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        action: 'download',
+                        file_id: fileId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Download failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Try fetch first, fallback to direct download
+                try {
+                    const fileResponse = await fetch(data.download_url);
+                    if (fileResponse.ok) {
+                        const blob = await fileResponse.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        log(`✅ Downloaded: ${filename}`, 'success');
+                    } else {
+                        throw new Error('Fetch failed');
+                    }
+                } catch (fetchError) {
+                    // Fallback to direct download
+                    window.open(data.download_url, '_blank');
+                    log(`📥 Direct download opened: ${filename}`, 'success');
+                }
+                
+            } catch (error) {
+                log(`❌ Download failed: ${error.message}`, 'error');
+            }
+        }
+        
+        function copyFileId(fileId) {
+            navigator.clipboard.writeText(fileId).then(() => {
+                log(`📋 File ID copied: ${fileId}`, 'success');
+                document.getElementById('downloadFileId').value = fileId;
+            });
+        }
+        
+        function clearFileList() {
+            document.getElementById('fileList').innerHTML = '';
+            log('🗑️ File list cleared', 'info');
+        }
+        
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -321,223 +773,6 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
-
-        function showProgress(show) {
-            document.getElementById('progressContainer').style.display = show ? 'block' : 'none';
-            document.getElementById('uploadSteps').style.display = show ? 'block' : 'none';
-        }
-
-        function updateProgress(step, percentage, text) {
-            document.getElementById('progressFill').style.width = percentage + '%';
-            document.getElementById('progressText').textContent = text;
-            
-            // Update step status
-            for (let i = 1; i <= 4; i++) {
-                const stepEl = document.getElementById(`step${i}`);
-                stepEl.className = 'step';
-                if (i < step) stepEl.classList.add('success');
-                else if (i === step) stepEl.classList.add('active');
-            }
-        }
-
-        function setStepError(step) {
-            document.getElementById(`step${step}`).classList.add('error');
-        }
-
-        function getHeaders() {
-            const idToken = document.getElementById('idToken').value;
-            if (!idToken || idToken.includes('your-cognito-id-token')) {
-                throw new Error('Please provide a valid Cognito ID token');
-            }
-            
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-            };
-        }
-
-        function getApiUrl() {
-            const apiUrl = document.getElementById('apiUrl').value;
-            if (!apiUrl || apiUrl.includes('your-api-gateway-url')) {
-                throw new Error('Please provide a valid API Gateway URL');
-            }
-            return apiUrl;
-        }
-
-        async function testCompleteWorkflow() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                addResult('Error', 'Please select a file first', 'error');
-                return;
-            }
-
-            try {
-                clearResults();
-                showProgress(true);
-                document.getElementById('uploadBtn').disabled = true;
-
-                const apiUrl = getApiUrl();
-                const headers = getHeaders();
-                const projectId = document.getElementById('projectId').value || undefined;
-
-                // Step 1: Generate Upload URL
-                updateProgress(1, 20, 'Generating upload URL...');
-                
-                const uploadResponse = await fetch(`${apiUrl}/file-upload`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        action: 'upload',
-                        filename: file.name,
-                        content_type: file.type || 'application/octet-stream',
-                        project_id: projectId,
-                        expiration: 3600
-                    })
-                });
-
-                if (!uploadResponse.ok) {
-                    throw new Error(`Upload URL generation failed: ${await uploadResponse.text()}`);
-                }
-
-                const uploadData = await uploadResponse.json();
-                currentFileId = uploadData.file_id;
-                
-                addResult('Step 1: Upload URL Generated', JSON.stringify(uploadData, null, 2), 'success');
-
-                // Step 2: Upload to S3
-                updateProgress(2, 40, 'Uploading file to S3...');
-
-                const s3Response = await fetch(uploadData.upload_url, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': file.type || 'application/octet-stream'
-                    },
-                    body: file
-                });
-
-                if (!s3Response.ok) {
-                    throw new Error(`S3 upload failed: ${await s3Response.text()}`);
-                }
-
-                addResult('Step 2: File Uploaded to S3', 'File successfully uploaded to S3', 'success');
-
-                // Step 3: Confirm Upload
-                updateProgress(3, 60, 'Confirming upload...');
-
-                const confirmResponse = await fetch(`${apiUrl}/file-upload`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        action: 'confirm',
-                        file_id: currentFileId,
-                        file_size: file.size
-                    })
-                });
-
-                if (!confirmResponse.ok) {
-                    throw new Error(`Upload confirmation failed: ${await confirmResponse.text()}`);
-                }
-
-                const confirmData = await confirmResponse.json();
-                addResult('Step 3: Upload Confirmed', JSON.stringify(confirmData, null, 2), 'success');
-
-                // Step 4: Verify File
-                updateProgress(4, 80, 'Verifying file metadata...');
-
-                const getResponse = await fetch(`${apiUrl}/file-upload`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        action: 'get',
-                        file_id: currentFileId
-                    })
-                });
-
-                if (!getResponse.ok) {
-                    throw new Error(`File verification failed: ${await getResponse.text()}`);
-                }
-
-                const fileData = await getResponse.json();
-                addResult('Step 4: File Verified', JSON.stringify(fileData, null, 2), 'success');
-
-                updateProgress(4, 100, '✅ Upload workflow completed successfully!');
-                
-                setTimeout(() => {
-                    showProgress(false);
-                    document.getElementById('uploadBtn').disabled = false;
-                }, 2000);
-
-            } catch (error) {
-                console.error('Upload workflow failed:', error);
-                addResult('Upload Failed', error.message, 'error');
-                setStepError(1);
-                document.getElementById('uploadBtn').disabled = false;
-                
-                setTimeout(() => showProgress(false), 2000);
-            }
-        }
-
-        async function listFiles() {
-            try {
-                const apiUrl = getApiUrl();
-                const headers = getHeaders();
-                const projectId = document.getElementById('projectId').value || undefined;
-
-                const response = await fetch(`${apiUrl}/file-upload`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({
-                        action: 'list',
-                        project_id: projectId
-                    })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`List files failed: ${await response.text()}`);
-                }
-
-                const data = await response.json();
-                addResult('Files List', JSON.stringify(data, null, 2), 'info');
-
-            } catch (error) {
-                console.error('List files failed:', error);
-                addResult('List Files Failed', error.message, 'error');
-            }
-        }
-
-        function addResult(title, content, type = 'info') {
-            const resultsDiv = document.getElementById('results');
-            const resultContent = document.getElementById('resultContent');
-            
-            resultsDiv.style.display = 'block';
-            
-            const resultItem = document.createElement('div');
-            resultItem.className = 'result-item';
-            
-            resultItem.innerHTML = `
-                <h4 class="${type}">${title}</h4>
-                <div class="result-content">${content}</div>
-            `;
-            
-            resultContent.appendChild(resultItem);
-            resultItem.scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function clearResults() {
-            const resultContent = document.getElementById('resultContent');
-            resultContent.innerHTML = '';
-            document.getElementById('results').style.display = 'none';
-            showProgress(false);
-        }
-
-        // Auto-populate with example values
-        window.addEventListener('load', function() {
-            document.getElementById('apiUrl').value = 'https://your-api-gateway-url.execute-api.us-west-2.amazonaws.com/prod';
-            document.getElementById('idToken').value = 'your-cognito-id-token-here';
-            document.getElementById('projectId').value = 'test-project-123';
-        });
     </script>
 </body>
 </html> 

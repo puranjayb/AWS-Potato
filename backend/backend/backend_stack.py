@@ -22,14 +22,34 @@ class BackendStack(Stack):
             bucket_name=None,  # CDK will generate a unique name
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=True,
+                block_public_policy=True,
+                ignore_public_acls=True,
+                restrict_public_buckets=True
+            ),
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             cors=[
                 s3.CorsRule(
-                    allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST, s3.HttpMethods.DELETE, s3.HttpMethods.HEAD],
+                    allowed_methods=[
+                        s3.HttpMethods.GET, 
+                        s3.HttpMethods.PUT, 
+                        s3.HttpMethods.POST, 
+                        s3.HttpMethods.DELETE, 
+                        s3.HttpMethods.HEAD
+                    ],
                     allowed_origins=["*"],  # In production, specify your frontend domain
-                    allowed_headers=["*"],
+                    allowed_headers=["*"],  # Simplified to allow all headers
+                    exposed_headers=[
+                        "ETag",
+                        "x-amz-server-side-encryption",
+                        "x-amz-request-id",
+                        "x-amz-id-2",
+                        "Content-Length",
+                        "Content-Type",
+                        "Last-Modified"
+                    ],
                     max_age=3600
                 )
             ]
@@ -116,6 +136,25 @@ class BackendStack(Stack):
 
         # Grant file upload Lambda access to S3 bucket
         file_storage_bucket.grant_read_write(file_upload_handler)
+        
+        # Grant additional S3 permissions for presigned URL operations
+        file_upload_handler.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:GetObjectVersion",
+                    "s3:PutObjectAcl",
+                    "s3:GetObjectAcl"
+                ],
+                resources=[
+                    file_storage_bucket.bucket_arn,
+                    f"{file_storage_bucket.bucket_arn}/*"
+                ]
+            )
+        )
 
         # Grant Lambda access to Cognito
         auth_handler.add_to_role_policy(
@@ -141,7 +180,9 @@ class BackendStack(Stack):
                 allow_origins=apigw.Cors.ALL_ORIGINS,
                 allow_methods=apigw.Cors.ALL_METHODS,
                 allow_headers=["Content-Type", "Authorization", "X-Amz-Date", 
-                             "X-Api-Key", "X-Amz-Security-Token"]
+                             "X-Api-Key", "X-Amz-Security-Token", "X-Amz-User-Agent", "X-Requested-With"],
+                allow_credentials=True,
+                max_age=Duration.seconds(86400)
             )
         )
 
@@ -161,20 +202,8 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 auth_handler,
-                proxy=True,
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'"
-                    }
-                }]
-            ),
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True
-                }
-            }]
+                proxy=True
+            )
         )
 
         # Add methods to projects resource  
@@ -182,22 +211,10 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 projects_handler,
-                proxy=True,
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'"
-                    }
-                }]
+                proxy=True
             ),
             authorizer=auth,
-            authorization_type=apigw.AuthorizationType.COGNITO,
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True
-                }
-            }]
+            authorization_type=apigw.AuthorizationType.COGNITO
         )
 
         # Add methods to files resource
@@ -205,22 +222,10 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 file_upload_handler,
-                proxy=True,
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'"
-                    }
-                }]
+                proxy=True
             ),
             authorizer=auth,
-            authorization_type=apigw.AuthorizationType.COGNITO,
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True
-                }
-            }]
+            authorization_type=apigw.AuthorizationType.COGNITO
         )
 
         # Add CloudFormation outputs

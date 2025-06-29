@@ -2,6 +2,7 @@ import json
 import os
 import boto3
 import psycopg2
+import psycopg2.errors
 import uuid
 from datetime import datetime
 from botocore.exceptions import ClientError
@@ -65,87 +66,119 @@ def create_or_update_user_project(user_id, email, cognito_sub=None):
         create_tables(conn)
         
         with conn.cursor() as cur:
-            # First, check if user already has a project
+            # Use a more comprehensive check - try all possible ways user might exist
+            existing_user = None
+            
+            # First, check by cognito_sub if provided
             if cognito_sub:
                 cur.execute(
                     "SELECT project_id, user_id, email FROM user_details WHERE cognito_sub = %s",
                     (cognito_sub,)
                 )
                 existing_user = cur.fetchone()
-                
-                if existing_user:
-                    # Update last login for existing user
-                    cur.execute(
-                        """
-                        UPDATE user_details 
-                        SET last_login = NOW(), updated_at = NOW() 
-                        WHERE cognito_sub = %s
-                        """,
-                        (cognito_sub,)
-                    )
-                    conn.commit()
-                    
-                    return {
-                        'project_id': existing_user[0],
-                        'user_id': existing_user[1],
-                        'email': existing_user[2]
-                    }
+                print(f"Found user by cognito_sub: {existing_user}")
             
-            # Check if user_id already exists (fallback)
-            cur.execute(
-                "SELECT project_id, user_id, email FROM user_details WHERE user_id = %s LIMIT 1",
-                (user_id,)
-            )
-            existing_user_by_id = cur.fetchone()
+            # If not found by cognito_sub, check by user_id
+            if not existing_user:
+                cur.execute(
+                    "SELECT project_id, user_id, email FROM user_details WHERE user_id = %s LIMIT 1",
+                    (user_id,)
+                )
+                existing_user = cur.fetchone()
+                print(f"Found user by user_id: {existing_user}")
             
-            if existing_user_by_id:
-                # Update existing user record
+            # If not found by user_id, check by email as final fallback
+            if not existing_user:
+                cur.execute(
+                    "SELECT project_id, user_id, email FROM user_details WHERE email = %s LIMIT 1",
+                    (email,)
+                )
+                existing_user = cur.fetchone()
+                print(f"Found user by email: {existing_user}")
+            
+            if existing_user:
+                # Update existing user record with latest info
                 cur.execute(
                     """
                     UPDATE user_details 
-                    SET last_login = NOW(), updated_at = NOW(), cognito_sub = %s
-                    WHERE user_id = %s
+                    SET last_login = NOW(), updated_at = NOW(), cognito_sub = COALESCE(%s, cognito_sub),
+                        user_id = %s, email = %s
+                    WHERE project_id = %s
                     """,
-                    (cognito_sub, user_id)
+                    (cognito_sub, user_id, email, existing_user[0])
                 )
                 conn.commit()
+                print(f"Updated existing user project: {existing_user[0]}")
                 
                 return {
-                    'project_id': existing_user_by_id[0],
-                    'user_id': existing_user_by_id[1],
-                    'email': existing_user_by_id[2]
+                    'project_id': existing_user[0],
+                    'user_id': user_id,
+                    'email': email
                 }
             
-            # Create new project for new user
+            # Create new project for new user - use INSERT ON CONFLICT to handle race conditions
             project_id = str(uuid.uuid4())
             
-            # Create new project
-            cur.execute(
-                """
-                INSERT INTO projects (project_id, name)
-                VALUES (%s, %s)
-                RETURNING project_id
-                """,
-                (project_id, f"Project-{project_id[:8]}")
-            )
-            
-            # Create user details
-            cur.execute(
-                """
-                INSERT INTO user_details (user_id, email, project_id, cognito_sub, last_login)
-                VALUES (%s, %s, %s, %s, NOW())
-                RETURNING id
-                """,
-                (user_id, email, project_id, cognito_sub)
-            )
-            
-            conn.commit()
-            
-            return {
-                'project_id': project_id,
-                'user_id': user_id,
-                'email': email
-            }
+            try:
+                # Create new project
+                cur.execute(
+                    """
+                    INSERT INTO projects (project_id, name)
+                    VALUES (%s, %s)
+                    RETURNING project_id
+                    """,
+                    (project_id, f"Project-{project_id[:8]}")
+                )
+                
+                # Create user details with conflict handling
+                cur.execute(
+                    """
+                    INSERT INTO user_details (user_id, email, project_id, cognito_sub, last_login)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    ON CONFLICT (user_id, project_id) DO UPDATE SET
+                        email = EXCLUDED.email,
+                        cognito_sub = COALESCE(EXCLUDED.cognito_sub, user_details.cognito_sub),
+                        last_login = NOW(),
+                        updated_at = NOW()
+                    RETURNING id
+                    """,
+                    (user_id, email, project_id, cognito_sub)
+                )
+                
+                conn.commit()
+                print(f"Created new user project: {project_id}")
+                
+                return {
+                    'project_id': project_id,
+                    'user_id': user_id,
+                    'email': email
+                }
+                
+            except Exception as ie:
+                # Handle any remaining integrity constraint violations or other database errors
+                print(f"Database error occurred, attempting to fetch existing record: {ie}")
+                conn.rollback()
+                
+                # Try to find the existing record again
+                cur.execute(
+                    """
+                    SELECT project_id, user_id, email FROM user_details 
+                    WHERE user_id = %s OR email = %s OR cognito_sub = %s
+                    LIMIT 1
+                    """,
+                    (user_id, email, cognito_sub)
+                )
+                existing = cur.fetchone()
+                
+                if existing:
+                    return {
+                        'project_id': existing[0],
+                        'user_id': existing[1],
+                        'email': existing[2]
+                    }
+                else:
+                    # This shouldn't happen, but handle it gracefully
+                    raise Exception("Unable to create or find user project after conflict")
             
     except Exception as e:
         print(f"Error creating/updating user project: {str(e)}")

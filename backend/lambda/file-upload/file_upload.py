@@ -9,8 +9,10 @@ from botocore.exceptions import ClientError
 # CORS headers for all responses
 CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Requested-With',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400'
 }
 
 def get_db_connection():
@@ -156,34 +158,50 @@ def list_files(user_id, project_id=None):
     finally:
         conn.close()
 
+def get_content_type_from_filename(filename):
+    """Get appropriate content type based on file extension"""
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(filename)
+    return content_type or 'application/octet-stream'
+
 def generate_presigned_upload_url(s3_key, content_type, expiration=3600):
-    """Generate presigned URL for direct S3 upload with CORS support"""
+    """Generate presigned URL for direct S3 upload with maximum flexibility"""
     s3_client = boto3.client('s3')
     try:
+        # Generate presigned URL with minimal constraints for maximum compatibility
+        bucket_name = os.environ['S3_BUCKET_NAME']
+        
+        print(f"Generating presigned URL for bucket: {bucket_name}, key: {s3_key}")
+        
         response = s3_client.generate_presigned_url(
             'put_object',
             Params={
-                'Bucket': os.environ['S3_BUCKET_NAME'],
-                'Key': s3_key,
-                'ContentType': content_type,
-                'ServerSideEncryption': 'AES256'
+                'Bucket': bucket_name,
+                'Key': s3_key
+                # Removed ServerSideEncryption and ContentType to avoid signature issues
             },
             ExpiresIn=expiration
         )
+        
+        print(f"Successfully generated presigned URL (expires in {expiration}s)")
         return response
+        
     except Exception as e:
         print(f"Error generating presigned URL: {str(e)}")
+        print(f"Bucket: {os.environ.get('S3_BUCKET_NAME', 'NOT_SET')}")
+        print(f"S3 Key: {s3_key}")
         raise e
 
 def generate_presigned_download_url(s3_key, expiration=3600):
-    """Generate presigned URL for file download"""
+    """Generate presigned URL for file download with CORS support"""
     s3_client = boto3.client('s3')
     try:
         response = s3_client.generate_presigned_url(
             'get_object',
             Params={
                 'Bucket': os.environ['S3_BUCKET_NAME'],
-                'Key': s3_key
+                'Key': s3_key,
+                'ResponseContentDisposition': f'attachment; filename="{s3_key.split("/")[-1]}"'
             },
             ExpiresIn=expiration
         )
@@ -270,6 +288,14 @@ def handler(event, context):
     try:
         print(f"Received event: {json.dumps(event, default=str)}")
         
+        # Handle CORS preflight OPTIONS requests
+        if event.get('httpMethod') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'message': 'CORS preflight successful'})
+            }
+        
         # Parse request body
         body = json.loads(event.get('body', '{}'))
         action = body.get('action')
@@ -295,7 +321,7 @@ def handler(event, context):
         if action == 'upload':
             # Generate presigned URL for file upload
             original_filename = body.get('filename')
-            content_type = body.get('content_type', 'application/octet-stream')
+            content_type = body.get('content_type')
             project_id = body.get('project_id')
             expiration = body.get('expiration', 3600)  # Default 1 hour
             
@@ -309,6 +335,10 @@ def handler(event, context):
                     })
                 }
             
+            # Auto-detect content type if not provided
+            if not content_type:
+                content_type = get_content_type_from_filename(original_filename)
+            
             # Generate unique file ID and S3 key
             file_id = str(uuid.uuid4())
             timestamp = datetime.now().strftime('%Y/%m/%d')
@@ -316,7 +346,7 @@ def handler(event, context):
             safe_filename = original_filename.replace(' ', '_').replace('/', '_')
             s3_key = f"{user_id}/{timestamp}/{file_id}_{safe_filename}"
             
-            # Generate presigned URL
+            # Generate presigned URL (without Content-Type constraint for flexibility)
             upload_url = generate_presigned_upload_url(s3_key, content_type, expiration)
             
             # Pre-save metadata (status: 'pending')
@@ -326,7 +356,7 @@ def handler(event, context):
                 upload_status='pending'
             )
             
-            print(f"Generated upload URL for file: {original_filename}, file_id: {file_id}")
+            print(f"Generated upload URL for file: {original_filename}, file_id: {file_id}, content_type: {content_type}")
             
             return {
                 'statusCode': 200,
@@ -335,9 +365,20 @@ def handler(event, context):
                     'upload_url': upload_url,
                     'file_id': file_id,
                     's3_key': s3_key,
+                    'content_type': content_type,
                     'expires_in': expiration,
                     'method': 'PUT',
-                    'instructions': 'Upload your file to the upload_url using PUT method with the correct Content-Type header'
+                    'upload_instructions': {
+                        'method': 'PUT',
+                        'url': upload_url,
+                        'headers_note': 'Do not set Content-Type header - let browser auto-detect to avoid signature mismatch',
+                        'body': 'Send raw file data as request body',
+                        'cors_note': 'This URL supports CORS from any origin'
+                    },
+                    'frontend_example': {
+                        'javascript': 'fetch(upload_url, { method: "PUT", body: file })',
+                        'note': 'Do not set any custom headers to avoid 403 errors'
+                    }
                 })
             }
             
@@ -481,7 +522,13 @@ def handler(event, context):
                     'download_url': download_url,
                     'file_id': file_id,
                     'filename': file_metadata['original_filename'],
-                    'expires_in': expiration
+                    'expires_in': expiration,
+                    'cors_note': 'Use fetch() or window.open() to download. For programmatic download, ensure your frontend domain is in S3 CORS policy.',
+                    'usage_examples': {
+                        'direct_download': 'window.open(download_url)',
+                        'fetch_download': 'fetch(download_url).then(response => response.blob())',
+                        'anchor_download': '<a href="download_url" download="filename">Download</a>'
+                    }
                 })
             }
             
