@@ -65,7 +65,58 @@ def create_or_update_user_project(user_id, email, cognito_sub=None):
         create_tables(conn)
         
         with conn.cursor() as cur:
-            # Generate a new project_id
+            # First, check if user already has a project
+            if cognito_sub:
+                cur.execute(
+                    "SELECT project_id, user_id, email FROM user_details WHERE cognito_sub = %s",
+                    (cognito_sub,)
+                )
+                existing_user = cur.fetchone()
+                
+                if existing_user:
+                    # Update last login for existing user
+                    cur.execute(
+                        """
+                        UPDATE user_details 
+                        SET last_login = NOW(), updated_at = NOW() 
+                        WHERE cognito_sub = %s
+                        """,
+                        (cognito_sub,)
+                    )
+                    conn.commit()
+                    
+                    return {
+                        'project_id': existing_user[0],
+                        'user_id': existing_user[1],
+                        'email': existing_user[2]
+                    }
+            
+            # Check if user_id already exists (fallback)
+            cur.execute(
+                "SELECT project_id, user_id, email FROM user_details WHERE user_id = %s LIMIT 1",
+                (user_id,)
+            )
+            existing_user_by_id = cur.fetchone()
+            
+            if existing_user_by_id:
+                # Update existing user record
+                cur.execute(
+                    """
+                    UPDATE user_details 
+                    SET last_login = NOW(), updated_at = NOW(), cognito_sub = %s
+                    WHERE user_id = %s
+                    """,
+                    (cognito_sub, user_id)
+                )
+                conn.commit()
+                
+                return {
+                    'project_id': existing_user_by_id[0],
+                    'user_id': existing_user_by_id[1],
+                    'email': existing_user_by_id[2]
+                }
+            
+            # Create new project for new user
             project_id = str(uuid.uuid4())
             
             # Create new project
@@ -78,15 +129,11 @@ def create_or_update_user_project(user_id, email, cognito_sub=None):
                 (project_id, f"Project-{project_id[:8]}")
             )
             
-            # Create or update user details
+            # Create user details
             cur.execute(
                 """
                 INSERT INTO user_details (user_id, email, project_id, cognito_sub, last_login)
                 VALUES (%s, %s, %s, %s, NOW())
-                ON CONFLICT (user_id, project_id)
-                DO UPDATE SET
-                    last_login = NOW(),
-                    updated_at = NOW()
                 RETURNING id
                 """,
                 (user_id, email, project_id, cognito_sub)

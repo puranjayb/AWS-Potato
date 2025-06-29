@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            padding: 10px;
+            background: #ffe6e6;
+            border-radius: 4px;
+        }
+        .success {
+            color: green;
+            margin: 10px 0;
+            padding: 10px;
+            background: #e6ffe6;
+            border-radius: 4px;
+        }
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    </style>
+</head>
+<body>
+    <h1>AWS Potato File Upload</h1>
+    
+    <!-- Login Section -->
+    <div id="auth-section">
+        <h3>Authentication</h3>
+        
+        <!-- Sign Up Section -->
+        <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+            <h4>Sign Up (New User)</h4>
+            <input type="text" id="signupUsername" placeholder="Username" style="margin: 5px; padding: 8px; width: 200px;">
+            <input type="email" id="signupEmail" placeholder="Email" style="margin: 5px; padding: 8px; width: 200px;">
+            <input type="password" id="signupPassword" placeholder="Password (8+ chars)" style="margin: 5px; padding: 8px; width: 200px;">
+            <br>
+            <button onclick="signup()">Sign Up</button>
+        </div>
+        
+        <!-- Sign In Section -->
+        <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+            <h4>Sign In (Existing User)</h4>
+            <input type="text" id="signinUsername" placeholder="Username" style="margin: 5px; padding: 8px; width: 200px;">
+            <input type="password" id="signinPassword" placeholder="Password" style="margin: 5px; padding: 8px; width: 200px;">
+            <br>
+            <button onclick="signin()">Sign In</button>
+        </div>
+        
+        <!-- Manual Token Entry -->
+        <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+            <h4>Or use ID Token directly</h4>
+            <p>If you already have a token from the API:</p>
+            <input type="text" id="idToken" placeholder="Paste your ID Token here" style="width: 100%; padding: 8px; margin: 5px 0;">
+            <button onclick="setToken()">Set Token</button>
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="upload-section" style="display: none;">
+        <h3>Upload Files</h3>
+        <div class="upload-area">
+            <input type="file" id="fileInput" multiple style="margin: 10px;">
+            <br>
+            <input type="text" id="projectId" placeholder="Project ID (optional)" style="margin: 10px; padding: 8px;">
+            <br>
+            <button onclick="uploadFiles()">Upload Files</button>
+        </div>
+        
+        <div id="message"></div>
+
+        <!-- File List Section -->
+        <h3>Your Files</h3>
+        <button onclick="loadFiles()">Refresh File List</button>
+        <div id="fileList"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://cnlh88bgc7.execute-api.us-west-2.amazonaws.com/prod';
+        let authToken = '';
+
+        function setToken() {
+            const token = document.getElementById('idToken').value;
+            if (token) {
+                authToken = token;
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('upload-section').style.display = 'block';
+                loadFiles();
+            } else {
+                showMessage('Please enter a valid token', 'error');
+            }
+        }
+
+        function showMessage(text, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function uploadFiles() {
+            const fileInput = document.getElementById('fileInput');
+            const projectId = document.getElementById('projectId').value;
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                showMessage('Please select files to upload', 'error');
+                return;
+            }
+
+            for (let file of files) {
+                try {
+                    showMessage(`Uploading ${file.name}...`);
+                    await uploadSingleFile(file, projectId);
+                    showMessage(`${file.name} uploaded successfully!`);
+                } catch (error) {
+                    showMessage(`Error uploading ${file.name}: ${error.message}`, 'error');
+                }
+            }
+
+            // Clear the file input and refresh file list
+            fileInput.value = '';
+            loadFiles();
+        }
+
+        async function uploadSingleFile(file, projectId) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    try {
+                        // Convert file to base64 (remove the data:mime;base64, prefix)
+                        const base64Data = e.target.result.split(',')[1];
+                        
+                        const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'upload',
+                                file_content: base64Data,
+                                filename: file.name,
+                                content_type: file.type,
+                                project_id: projectId || null
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || `HTTP ${response.status}: Upload failed`);
+                        }
+
+                        const result = await response.json();
+                        resolve(result);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'list_files'
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}: Failed to load files`);
+                }
+
+                const result = await response.json();
+                displayFiles(result.files);
+            } catch (error) {
+                showMessage(`Error loading files: ${error.message}`, 'error');
+            }
+        }
+
+        function displayFiles(files) {
+            const fileListDiv = document.getElementById('fileList');
+            
+            if (files.length === 0) {
+                fileListDiv.innerHTML = '<p>No files found</p>';
+                return;
+            }
+
+            fileListDiv.innerHTML = files.map(file => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <strong>${file.original_filename}</strong>
+                        <small>Size: ${formatFileSize(file.file_size)} | Type: ${file.content_type}</small>
+                        <small>Uploaded: ${new Date(file.created_at).toLocaleDateString()}</small>
+                    </div>
+                    <button onclick="downloadFile('${file.file_id}')">Download</button>
+                </div>
+            `).join('');
+        }
+
+        async function downloadFile(fileId) {
+            try {
+                // Get presigned download URL
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'generate_download_url',
+                        file_id: fileId,
+                        expiration: 300 // 5 minutes
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to generate download URL');
+                }
+
+                const result = await response.json();
+                
+                // Create temporary download link
+                const link = document.createElement('a');
+                link.href = result.download_url;
+                link.download = result.filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage(`Downloading ${result.filename}...`);
+            } catch (error) {
+                showMessage(`Error downloading file: ${error.message}`, 'error');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function signup() {
+            const username = document.getElementById('signupUsername').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            if (!username || !email || !password) {
+                showMessage('Please fill in all signup fields', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'signup',
+                        username: username,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(`User created successfully! Username: ${data.username}. Now you can sign in.`, 'success');
+                    // Clear signup fields
+                    document.getElementById('signupUsername').value = '';
+                    document.getElementById('signupEmail').value = '';
+                    document.getElementById('signupPassword').value = '';
+                    // Pre-fill signin username
+                    document.getElementById('signinUsername').value = username;
+                } else {
+                    showMessage(`Signup failed: ${data.message || data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Signup error: ${error.message}`, 'error');
+            }
+        }
+
+        async function signin() {
+            const username = document.getElementById('signinUsername').value;
+            const password = document.getElementById('signinPassword').value;
+
+            if (!username || !password) {
+                showMessage('Please fill in both username and password', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'signin',
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.tokens.IdToken;
+                    showMessage(`Sign in successful! Welcome back, ${username}`, 'success');
+                    document.getElementById('auth-section').style.display = 'none';
+                    document.getElementById('upload-section').style.display = 'block';
+                    
+                    // Pre-fill project ID if available
+                    if (data.project && data.project.project_id) {
+                        document.getElementById('projectId').value = data.project.project_id;
+                    }
+                    
+                    loadFiles();
+                } else {
+                    showMessage(`Sign in failed: ${data.message || data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Sign in error: ${error.message}`, 'error');
+            }
+        }
+
+        function setToken() {
+            const token = document.getElementById('idToken').value;
+            if (token) {
+                authToken = token;
+                document.getElementById('auth-section').style.display = 'none';
+                document.getElementById('upload-section').style.display = 'block';
+                loadFiles();
+            } else {
+                showMessage('Please enter a valid token', 'error');
+            }
+        }
+
+        function showMessage(text, type = 'success') {
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `<div class="${type}">${text}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        async function uploadFiles() {
+            const fileInput = document.getElementById('fileInput');
+            const projectId = document.getElementById('projectId').value;
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                showMessage('Please select files to upload', 'error');
+                return;
+            }
+
+            for (let file of files) {
+                try {
+                    showMessage(`Uploading ${file.name}...`);
+                    await uploadSingleFile(file, projectId);
+                    showMessage(`${file.name} uploaded successfully!`);
+                } catch (error) {
+                    showMessage(`Error uploading ${file.name}: ${error.message}`, 'error');
+                }
+            }
+
+            // Clear the file input and refresh file list
+            fileInput.value = '';
+            loadFiles();
+        }
+
+        async function uploadSingleFile(file, projectId) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = async (e) => {
+                    try {
+                        // Convert file to base64 (remove the data:mime;base64, prefix)
+                        const base64Data = e.target.result.split(',')[1];
+                        
+                        const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                action: 'upload',
+                                file_content: base64Data,
+                                filename: file.name,
+                                content_type: file.type,
+                                project_id: projectId || null
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.message || `HTTP ${response.status}: Upload failed`);
+                        }
+
+                        const result = await response.json();
+                        resolve(result);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'list_files'
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP ${response.status}: Failed to load files`);
+                }
+
+                const result = await response.json();
+                displayFiles(result.files);
+            } catch (error) {
+                showMessage(`Error loading files: ${error.message}`, 'error');
+            }
+        }
+
+        function displayFiles(files) {
+            const fileListDiv = document.getElementById('fileList');
+            
+            if (files.length === 0) {
+                fileListDiv.innerHTML = '<p>No files found</p>';
+                return;
+            }
+
+            fileListDiv.innerHTML = files.map(file => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <strong>${file.original_filename}</strong>
+                        <small>Size: ${formatFileSize(file.file_size)} | Type: ${file.content_type}</small>
+                        <small>Uploaded: ${new Date(file.created_at).toLocaleDateString()}</small>
+                    </div>
+                    <button onclick="downloadFile('${file.file_id}')">Download</button>
+                </div>
+            `).join('');
+        }
+
+        async function downloadFile(fileId) {
+            try {
+                // Get presigned download URL
+                const response = await fetch(`${API_BASE_URL}/file-upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'generate_download_url',
+                        file_id: fileId,
+                        expiration: 300 // 5 minutes
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to generate download URL');
+                }
+
+                const result = await response.json();
+                
+                // Create temporary download link
+                const link = document.createElement('a');
+                link.href = result.download_url;
+                link.download = result.filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage(`Downloading ${result.filename}...`);
+            } catch (error) {
+                showMessage(`Error downloading file: ${error.message}`, 'error');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Test authentication function
+        async function testAuth() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'signin',
+                        username: 'filetest',
+                        password: 'FileTest123!'
+                    })
+                });
+
+                const result = await response.json();
+                console.log('Auth test result:', result);
+                
+                if (result.tokens && result.tokens.IdToken) {
+                    document.getElementById('idToken').value = result.tokens.IdToken;
+                    showMessage('Test authentication successful! Token filled automatically.', 'success');
+                } else {
+                    showMessage('Authentication failed: ' + (result.message || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                showMessage(`Auth test failed: ${error.message}`, 'error');
+            }
+        }
+    </script>
+
+    <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+        <h4>Quick Test</h4>
+        <p>If you have a test user, you can try auto-authentication:</p>
+        <button onclick="testAuth()">Test Authentication</button>
+        <p><small>This will try to sign in with username: 'filetest', password: 'FileTest123!'</small></p>
+    </div>
+</body>
+</html>
