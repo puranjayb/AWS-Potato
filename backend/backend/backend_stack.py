@@ -27,9 +27,35 @@ class BackendStack(Stack):
             auto_delete_objects=True,
             cors=[
                 s3.CorsRule(
-                    allowed_methods=[s3.HttpMethods.GET, s3.HttpMethods.PUT, s3.HttpMethods.POST, s3.HttpMethods.DELETE, s3.HttpMethods.HEAD],
+                    allowed_methods=[
+                        s3.HttpMethods.GET, 
+                        s3.HttpMethods.PUT, 
+                        s3.HttpMethods.POST, 
+                        s3.HttpMethods.DELETE, 
+                        s3.HttpMethods.HEAD
+                    ],
                     allowed_origins=["*"],  # In production, specify your frontend domain
-                    allowed_headers=["*"],
+                    allowed_headers=[
+                        "*",
+                        "Authorization",
+                        "Content-Type",
+                        "Content-Length",
+                        "Date",
+                        "X-Amz-Date",
+                        "X-Amz-Security-Token",
+                        "X-Amz-User-Agent",
+                        "x-amz-content-sha256",
+                        "x-amz-server-side-encryption"
+                    ],
+                    exposed_headers=[
+                        "ETag",
+                        "x-amz-server-side-encryption",
+                        "x-amz-request-id",
+                        "x-amz-id-2",
+                        "Content-Length",
+                        "Content-Type",
+                        "Last-Modified"
+                    ],
                     max_age=3600
                 )
             ]
