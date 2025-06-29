@@ -9,8 +9,10 @@ from botocore.exceptions import ClientError
 # CORS headers for all responses
 CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Requested-With',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400'
 }
 
 def get_db_connection():
@@ -269,6 +271,14 @@ def handler(event, context):
     """Main Lambda handler for simplified file upload"""
     try:
         print(f"Received event: {json.dumps(event, default=str)}")
+        
+        # Handle CORS preflight OPTIONS requests
+        if event.get('httpMethod') == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'message': 'CORS preflight successful'})
+            }
         
         # Parse request body
         body = json.loads(event.get('body', '{}'))
