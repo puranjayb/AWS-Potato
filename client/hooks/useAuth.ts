@@ -31,7 +31,7 @@ export const useSignin = () => {
       // Check if authentication was successful and tokens exist
       if (response.tokens) {
         // Store user data and tokens in the auth store
-        login(response.tokens.AccessToken)
+        login(response.tokens.IdToken)
 
         // Show success message
         toast.success('Logged in successfully!')

@@ -114,7 +114,6 @@ export const fileService = {
 
       // Start upload
       xhr.open('PUT', uploadUrl)
-      xhr.setRequestHeader('Content-Type', file.type)
       xhr.send(file)
     })
   },
