@@ -141,7 +141,9 @@ class BackendStack(Stack):
                 allow_origins=apigw.Cors.ALL_ORIGINS,
                 allow_methods=apigw.Cors.ALL_METHODS,
                 allow_headers=["Content-Type", "Authorization", "X-Amz-Date", 
-                             "X-Api-Key", "X-Amz-Security-Token"]
+                             "X-Api-Key", "X-Amz-Security-Token", "X-Amz-User-Agent", "X-Requested-With"],
+                allow_credentials=True,
+                max_age=Duration.seconds(86400)
             )
         )
 
@@ -161,20 +163,8 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 auth_handler,
-                proxy=True,
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'"
-                    }
-                }]
-            ),
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True
-                }
-            }]
+                proxy=True
+            )
         )
 
         # Add methods to projects resource  
@@ -182,22 +172,10 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 projects_handler,
-                proxy=True,
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'"
-                    }
-                }]
+                proxy=True
             ),
             authorizer=auth,
-            authorization_type=apigw.AuthorizationType.COGNITO,
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True
-                }
-            }]
+            authorization_type=apigw.AuthorizationType.COGNITO
         )
 
         # Add methods to files resource
@@ -205,50 +183,10 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 file_upload_handler,
-                proxy=True,
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'",
-                        'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-                        'method.response.header.Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'"
-                    }
-                }]
+                proxy=True
             ),
             authorizer=auth,
-            authorization_type=apigw.AuthorizationType.COGNITO,
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True,
-                    'method.response.header.Access-Control-Allow-Headers': True,
-                    'method.response.header.Access-Control-Allow-Methods': True
-                }
-            }]
-        )
-
-        # Add OPTIONS method for CORS preflight
-        files_api.add_method(
-            "OPTIONS",
-            apigw.MockIntegration(
-                integration_responses=[{
-                    'statusCode': '200',
-                    'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'",
-                        'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
-                        'method.response.header.Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'"
-                    }
-                }],
-                request_templates={"application/json": '{"statusCode": 200}'}
-            ),
-            method_responses=[{
-                'statusCode': '200',
-                'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True,
-                    'method.response.header.Access-Control-Allow-Headers': True,
-                    'method.response.header.Access-Control-Allow-Methods': True
-                }
-            }]
+            authorization_type=apigw.AuthorizationType.COGNITO
         )
 
         # Add CloudFormation outputs
