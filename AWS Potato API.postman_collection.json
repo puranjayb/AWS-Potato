@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "13bcd3ac-eb6a-4801-ac97-d7c82ef2d866",
 		"name": "AWS Potato API",
-		"description": "Complete API collection for AWS Potato application based on actual Lambda README documentation",
+		"description": "Complete API collection for AWS Potato application.\n\nAPI Base URL: https://cnlh88bgc7.execute-api.us-west-2.amazonaws.com/prod\n\nPassword Requirements:\n- Minimum 8 characters\n- At least 1 uppercase letter (A-Z)\n- At least 1 lowercase letter (a-z)\n- At least 1 number (0-9)\n- At least 1 symbol (!@#$%^&*)\n\nExamples:\n✅ Valid: \"Password123!\"\n❌ Invalid: \"password\" (no uppercase/numbers/symbols)\n❌ Invalid: \"Pass1!\" (too short)\n\nAPI Endpoints:\n- POST /auth - User authentication (signup, signin)\n- POST /projects - Project management (create_project, get_projects)\n- POST /file-upload - File operations (upload, confirm, get, list, download)\n\nAuthentication: Use Bearer token from signin response for protected endpoints.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "29552605"
 	},
@@ -17,12 +17,39 @@
 							"listen": "test",
 							"script": {
 								"exec": [
+									"// Test successful signup",
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
+									"    pm.test('Signup successful', function () {",
+									"        pm.expect(response.message).to.eql('User created successfully');",
+									"        pm.expect(response.username).to.exist;",
+									"        pm.expect(response.project.project_id).to.exist;",
+									"    });",
 									"    console.log('User created successfully:', response.username);",
 									"    if (response.project) {",
 									"        pm.collectionVariables.set('project_id', response.project.project_id);",
 									"        console.log('Project ID saved:', response.project.project_id);",
+									"    }",
+									"}",
+									"",
+									"// Test error responses",
+									"if (pm.response.code === 400) {",
+									"    const response = pm.response.json();",
+									"    pm.test('Error handled properly', function () {",
+									"        pm.expect(response.error).to.exist;",
+									"        pm.expect(response.message).to.exist;",
+									"    });",
+									"    ",
+									"    if (response.error === 'Invalid password') {",
+									"        pm.test('Password validation error', function () {",
+									"            pm.expect(response.message).to.include('Password must be at least 8 characters');",
+									"        });",
+									"    }",
+									"    ",
+									"    if (response.error === 'Username already exists') {",
+									"        pm.test('Duplicate username error', function () {",
+									"            pm.expect(response.message).to.include('Please choose a different username');",
+									"        });",
 									"    }",
 									"}"
 								],
@@ -66,8 +93,16 @@
 							"listen": "test",
 							"script": {
 								"exec": [
+									"// Test successful signin",
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
+									"    pm.test('Signin successful', function () {",
+									"        pm.expect(response.message).to.eql('Authentication successful');",
+									"        pm.expect(response.tokens).to.exist;",
+									"        pm.expect(response.tokens.IdToken).to.exist;",
+									"        pm.expect(response.project).to.exist;",
+									"        pm.expect(response.project.project_id).to.exist;",
+									"    });",
 									"    if (response.tokens && response.tokens.IdToken) {",
 									"        pm.collectionVariables.set('access_token', response.tokens.IdToken);",
 									"        console.log('IdToken saved to collection variable');",
@@ -76,6 +111,23 @@
 									"        pm.collectionVariables.set('project_id', response.project.project_id);",
 									"        console.log('Project ID saved:', response.project.project_id);",
 									"    }",
+									"}",
+									"",
+									"// Test error responses",
+									"if (pm.response.code === 400) {",
+									"    const response = pm.response.json();",
+									"    pm.test('400 error handled properly', function () {",
+									"        pm.expect(response.error).to.exist;",
+									"        pm.expect(response.message).to.exist;",
+									"    });",
+									"}",
+									"",
+									"if (pm.response.code === 401) {",
+									"    const response = pm.response.json();",
+									"    pm.test('401 authentication error', function () {",
+									"        pm.expect(response.error).to.exist;",
+									"        pm.expect(response.message).to.exist;",
+									"    });",
 									"}"
 								],
 								"type": "text/javascript",
@@ -196,51 +248,6 @@
 			"name": "File Upload",
 			"item": [
 				{
-					"name": "Upload File (Base64)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    const response = pm.response.json();",
-									"    if (response.file_id) {",
-									"        pm.collectionVariables.set('last_file_id', response.file_id);",
-									"        console.log('File ID saved:', response.file_id);",
-									"        console.log('S3 Key:', response.s3_key);",
-									"    }",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"action\": \"upload\",\n    \"file_content\": \"SGVsbG8gV29ybGQhIFRoaXMgaXMgYSB0ZXN0IGZpbGUgY29udGVudC4=\",\n    \"filename\": \"test-document.txt\",\n    \"content_type\": \"text/plain\",\n    \"project_id\": \"{{project_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{api_url}}/files",
-							"host": [
-								"{{api_url}}"
-							],
-							"path": [
-								"files"
-							]
-						},
-						"description": "Upload a file using base64 encoding (≤6MB). The file_content should be base64 encoded."
-					},
-					"response": []
-				},
-				{
 					"name": "Generate Upload URL",
 					"event": [
 						{
@@ -249,6 +256,13 @@
 								"exec": [
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
+									"    pm.test('Upload URL generated successfully', function () {",
+									"        pm.expect(response.upload_url).to.exist;",
+									"        pm.expect(response.file_id).to.exist;",
+									"        pm.expect(response.s3_key).to.exist;",
+									"        pm.expect(response.method).to.eql('PUT');",
+									"        pm.expect(response.expires_in).to.be.a('number');",
+									"    });",
 									"    if (response.upload_url) {",
 									"        pm.collectionVariables.set('upload_url', response.upload_url);",
 									"        pm.collectionVariables.set('pending_file_id', response.file_id);",
@@ -256,6 +270,15 @@
 									"        console.log('Upload URL generated for file:', response.file_id);",
 									"        console.log('S3 Key:', response.s3_key);",
 									"    }",
+									"}",
+									"",
+									"// Test error responses",
+									"if (pm.response.code === 400) {",
+									"    const response = pm.response.json();",
+									"    pm.test('Error handled properly', function () {",
+									"        pm.expect(response.error).to.exist;",
+									"        pm.expect(response.message).to.exist;",
+									"    });",
 									"}"
 								],
 								"type": "text/javascript",
@@ -273,18 +296,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"generate_upload_url\",\n    \"filename\": \"resume.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}"
+							"raw": "{\n    \"action\": \"upload\",\n    \"filename\": \"test-document.txt\",\n    \"content_type\": \"text/plain\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}"
 						},
 						"url": {
-							"raw": "{{api_url}}/files",
+							"raw": "{{api_url}}/file-upload",
 							"host": [
 								"{{api_url}}"
 							],
 							"path": [
-								"files"
+								"file-upload"
 							]
 						},
-						"description": "Generate a presigned URL for uploading large files directly to S3"
+						"description": "Generate a presigned URL for uploading files directly to S3. This creates a file record with 'pending' status and returns a URL for direct S3 upload."
 					},
 					"response": []
 				},
@@ -329,18 +352,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"confirm_upload\",\n    \"file_id\": \"{{pending_file_id}}\",\n    \"file_size\": 50000000\n}"
+							"raw": "{\n    \"action\": \"confirm\",\n    \"file_id\": \"{{pending_file_id}}\",\n    \"file_size\": 50000000\n}"
 						},
 						"url": {
-							"raw": "{{api_url}}/files",
+							"raw": "{{api_url}}/file-upload",
 							"host": [
 								"{{api_url}}"
 							],
 							"path": [
-								"files"
+								"file-upload"
 							]
 						},
-						"description": "Confirm successful upload to S3 and update file status to 'uploaded'"
+						"description": "Confirm successful upload to S3 and update file status to 'uploaded'. Call this after successfully uploading a file via presigned URL."
 					},
 					"response": []
 				},
@@ -356,18 +379,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"list_files\",\n    \"project_id\": \"{{project_id}}\"\n}"
+							"raw": "{\n    \"action\": \"list\",\n    \"project_id\": \"{{project_id}}\"\n}"
 						},
 						"url": {
-							"raw": "{{api_url}}/files",
+							"raw": "{{api_url}}/file-upload",
 							"host": [
 								"{{api_url}}"
 							],
 							"path": [
-								"files"
+								"file-upload"
 							]
 						},
-						"description": "List all files for the authenticated user, optionally filtered by project"
+						"description": "List all files for the authenticated user, optionally filtered by project_id."
 					},
 					"response": []
 				},
@@ -383,18 +406,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"get_file\",\n    \"file_id\": \"{{last_file_id}}\"\n}"
+							"raw": "{\n    \"action\": \"get\",\n    \"file_id\": \"{{last_file_id}}\"\n}"
 						},
 						"url": {
-							"raw": "{{api_url}}/files",
+							"raw": "{{api_url}}/file-upload",
 							"host": [
 								"{{api_url}}"
 							],
 							"path": [
-								"files"
+								"file-upload"
 							]
 						},
-						"description": "Get detailed metadata for a specific file"
+						"description": "Get detailed metadata for a specific file by file_id."
 					},
 					"response": []
 				},
@@ -427,18 +450,18 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"generate_download_url\",\n    \"file_id\": \"{{last_file_id}}\",\n    \"expiration\": 3600\n}"
+							"raw": "{\n    \"action\": \"download\",\n    \"file_id\": \"{{last_file_id}}\",\n    \"expiration\": 3600\n}"
 						},
 						"url": {
-							"raw": "{{api_url}}/files",
+							"raw": "{{api_url}}/file-upload",
 							"host": [
 								"{{api_url}}"
 							],
 							"path": [
-								"files"
+								"file-upload"
 							]
 						},
-						"description": "Generate a presigned URL for downloading a file from S3"
+						"description": "Generate a presigned URL for downloading a file from S3. The URL expires after the specified time."
 					},
 					"response": []
 				},
@@ -500,17 +523,17 @@
 	"variable": [
 		{
 			"key": "api_url",
-			"value": "https://cc03ogneyc.execute-api.us-west-2.amazonaws.com/prod",
+			"value": "https://cnlh88bgc7.execute-api.us-west-2.amazonaws.com/prod",
 			"type": "string"
 		},
 		{
 			"key": "access_token",
-			"value": "eyJraWQiOiJEKzBDSjJmMjVnV3JPWnF2TDFGWHdHTDFZRXBqVE9BZitYT1J3THlwK2lBPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiI2ODMxZDM5MC1lMGMxLTcwMjYtODZkNC05N2JiNzBmMzg2NjEiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6XC9cL2NvZ25pdG8taWRwLnVzLXdlc3QtMi5hbWF6b25hd3MuY29tXC91cy13ZXN0LTJfTnFrWmt4OG1ZIiwiY29nbml0bzp1c2VybmFtZSI6ImFyeWFucmFqMSIsIm9yaWdpbl9qdGkiOiJlYzRkYjM3Zi04YzI3LTQ5NWQtODVkNC04MjNhNWE2ZjdiNzciLCJhdWQiOiI1MG01a2x1YXUwYmhpMjdidGtuNTU5bWFpaCIsImV2ZW50X2lkIjoiZjg0NmE5YWYtMTMxZC00YWMzLTk2Y2ItZTQ0MzQwNDJkMDY0IiwidG9rZW5fdXNlIjoiaWQiLCJhdXRoX3RpbWUiOjE3NTA4NzkxNjksImV4cCI6MTc1MDg4Mjc2OSwiaWF0IjoxNzUwODc5MTY5LCJqdGkiOiI2Y2YyZTE5Yy04YTAzLTQ4MGYtYTVjMC0xYzJhYTRiODMyMWEiLCJlbWFpbCI6ImFyeWFucmFqQGdtYWlsLmNvbSJ9.cZa6S6bJm2Ot5DQzeQm2ds8BQ6TSN1BcMxKc7uFL-GyxUGgT0w1GJicSkzsYXYf_rbKlSxbwnIGR8D4Tr0ndrZoY2JHztyYsYvaC3A0qwc0MF1tzKKaUs7amL2JsQC-3aV82MK-5g5jbyPmVrDGdgZW94mOh9vIFP6FHvJ1gZOGzowRSLQDBbs35V0US5-p03JO85C4uGnp_AYsdYWlt19bnwxuZhNu3FsRjrT6AzN6bxTPqYIF-VmLVpbddEXP2-YvM7HR7ipFS8ijGlv4m5u2jiegcUE8flSqpuEt55Oxo_ZGB7W_EqNb6JFwXd5aTTiHok2QdVbW-vA5_9Ty_ig",
+			"value": "",
 			"type": "string"
 		},
 		{
 			"key": "username",
-			"value": "aryanraj1",
+			"value": "testuser",
 			"type": "string"
 		},
 		{
