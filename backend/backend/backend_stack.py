@@ -22,7 +22,12 @@ class BackendStack(Stack):
             bucket_name=None,  # CDK will generate a unique name
             versioned=True,
             encryption=s3.BucketEncryption.S3_MANAGED,
-            block_public_access=s3.BlockPublicAccess.BLOCK_ALL,
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=True,
+                block_public_policy=True,
+                ignore_public_acls=True,
+                restrict_public_buckets=True
+            ),
             removal_policy=RemovalPolicy.DESTROY,
             auto_delete_objects=True,
             cors=[
@@ -35,18 +40,7 @@ class BackendStack(Stack):
                         s3.HttpMethods.HEAD
                     ],
                     allowed_origins=["*"],  # In production, specify your frontend domain
-                    allowed_headers=[
-                        "*",
-                        "Authorization",
-                        "Content-Type",
-                        "Content-Length",
-                        "Date",
-                        "X-Amz-Date",
-                        "X-Amz-Security-Token",
-                        "X-Amz-User-Agent",
-                        "x-amz-content-sha256",
-                        "x-amz-server-side-encryption"
-                    ],
+                    allowed_headers=["*"],  # Simplified to allow all headers
                     exposed_headers=[
                         "ETag",
                         "x-amz-server-side-encryption",
@@ -142,6 +136,25 @@ class BackendStack(Stack):
 
         # Grant file upload Lambda access to S3 bucket
         file_storage_bucket.grant_read_write(file_upload_handler)
+        
+        # Grant additional S3 permissions for presigned URL operations
+        file_upload_handler.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:GetObjectVersion",
+                    "s3:PutObjectAcl",
+                    "s3:GetObjectAcl"
+                ],
+                resources=[
+                    file_storage_bucket.bucket_arn,
+                    f"{file_storage_bucket.bucket_arn}/*"
+                ]
+            )
+        )
 
         # Grant Lambda access to Cognito
         auth_handler.add_to_role_policy(

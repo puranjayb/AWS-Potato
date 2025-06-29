@@ -165,22 +165,31 @@ def get_content_type_from_filename(filename):
     return content_type or 'application/octet-stream'
 
 def generate_presigned_upload_url(s3_key, content_type, expiration=3600):
-    """Generate presigned URL for direct S3 upload with CORS support"""
+    """Generate presigned URL for direct S3 upload with maximum flexibility"""
     s3_client = boto3.client('s3')
     try:
-        # Generate presigned URL without specifying Content-Type for more flexibility
+        # Generate presigned URL with minimal constraints for maximum compatibility
+        bucket_name = os.environ['S3_BUCKET_NAME']
+        
+        print(f"Generating presigned URL for bucket: {bucket_name}, key: {s3_key}")
+        
         response = s3_client.generate_presigned_url(
             'put_object',
             Params={
-                'Bucket': os.environ['S3_BUCKET_NAME'],
-                'Key': s3_key,
-                'ServerSideEncryption': 'AES256'
+                'Bucket': bucket_name,
+                'Key': s3_key
+                # Removed ServerSideEncryption and ContentType to avoid signature issues
             },
             ExpiresIn=expiration
         )
+        
+        print(f"Successfully generated presigned URL (expires in {expiration}s)")
         return response
+        
     except Exception as e:
         print(f"Error generating presigned URL: {str(e)}")
+        print(f"Bucket: {os.environ.get('S3_BUCKET_NAME', 'NOT_SET')}")
+        print(f"S3 Key: {s3_key}")
         raise e
 
 def generate_presigned_download_url(s3_key, expiration=3600):
@@ -359,7 +368,17 @@ def handler(event, context):
                     'content_type': content_type,
                     'expires_in': expiration,
                     'method': 'PUT',
-                    'instructions': f'Upload your file to the upload_url using PUT method. Use Content-Type: {content_type} or leave it auto-detected by your client.'
+                    'upload_instructions': {
+                        'method': 'PUT',
+                        'url': upload_url,
+                        'headers_note': 'Do not set Content-Type header - let browser auto-detect to avoid signature mismatch',
+                        'body': 'Send raw file data as request body',
+                        'cors_note': 'This URL supports CORS from any origin'
+                    },
+                    'frontend_example': {
+                        'javascript': 'fetch(upload_url, { method: "PUT", body: file })',
+                        'note': 'Do not set any custom headers to avoid 403 errors'
+                    }
                 })
             }
             
