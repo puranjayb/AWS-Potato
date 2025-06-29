@@ -45,10 +45,6 @@ export const useFileOperations = () => {
   const queryClient = useQueryClient()
   const { token: authToken } = useAuthStore();
 
-  if (!authToken) {
-    throw new Error('Authentication token is required for file operations')
-  }
-
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async ({ 
@@ -60,7 +56,7 @@ export const useFileOperations = () => {
       projectId?: string
       onProgress?: (progress: number) => void
     }) => {
-      return fileUtils.uploadFile(authToken, file, projectId, onProgress)
+      return fileUtils.uploadFile(authToken!, file, projectId, onProgress)
     },
     onSuccess: (data, variables) => {
       // Invalidate files list to refresh the UI
@@ -98,7 +94,7 @@ export const useFileOperations = () => {
       fileId: string
       filename: string 
     }) => {
-      return fileUtils.downloadFile(authToken, fileId, filename)
+      return fileUtils.downloadFile(authToken!, fileId, filename)
     },
     onError: (error) => {
       console.error('Download failed:', error)
@@ -107,7 +103,7 @@ export const useFileOperations = () => {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (fileId: string) => fileService.deleteFile(authToken, fileId),
+    mutationFn: (fileId: string) => fileService.deleteFile(authToken!, fileId),
     onSuccess: (_, fileId) => {
       // Remove from all files lists
       queryClient.invalidateQueries({ 
@@ -126,7 +122,7 @@ export const useFileOperations = () => {
 
   // Generate download URL (for previews or custom handling)
   const generateDownloadUrlMutation = useMutation({
-    mutationFn: (fileId: string) => fileService.generateDownloadUrl(authToken, fileId),
+    mutationFn: (fileId: string) => fileService.generateDownloadUrl(authToken!, fileId),
     onError: (error) => {
       console.error('Generate download URL failed:', error)
     }
