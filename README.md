@@ -1,2 +1,2 @@
 # AWS-Potato
-Comprehensive Solution for making reading a medical report easy and understandable
+Comprehensive Solution for making reading a medical report easy and understandable.
