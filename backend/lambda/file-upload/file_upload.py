@@ -165,32 +165,55 @@ def get_content_type_from_filename(filename):
     return content_type or 'application/octet-stream'
 
 def generate_presigned_upload_url(s3_key, content_type, expiration=3600):
-    """Generate presigned URL for direct S3 upload with maximum flexibility"""
+    """Generate presigned URL for direct S3 upload with signature compatibility"""
     s3_client = boto3.client('s3')
     try:
-        # Generate presigned URL with minimal constraints for maximum compatibility
         bucket_name = os.environ['S3_BUCKET_NAME']
         
         print(f"Generating presigned URL for bucket: {bucket_name}, key: {s3_key}")
+        print(f"Content-Type: {content_type}")
+        
+        # Create presigned URL that expects the Content-Type header
+        # This ensures signature compatibility with Postman's request
+        params = {
+            'Bucket': bucket_name,
+            'Key': s3_key,
+            'ContentType': content_type  # Include content type in signature
+        }
         
         response = s3_client.generate_presigned_url(
             'put_object',
-            Params={
-                'Bucket': bucket_name,
-                'Key': s3_key
-                # Removed ServerSideEncryption and ContentType to avoid signature issues
-            },
+            Params=params,
             ExpiresIn=expiration
         )
         
-        print(f"Successfully generated presigned URL (expires in {expiration}s)")
+        print(f"Successfully generated presigned URL with Content-Type: {content_type}")
+        print(f"URL expires in {expiration} seconds")
         return response
         
     except Exception as e:
         print(f"Error generating presigned URL: {str(e)}")
         print(f"Bucket: {os.environ.get('S3_BUCKET_NAME', 'NOT_SET')}")
         print(f"S3 Key: {s3_key}")
-        raise e
+        print(f"Content-Type: {content_type}")
+        
+        # Fallback: try without ContentType if there's an error
+        try:
+            print("Attempting fallback without ContentType...")
+            fallback_params = {
+                'Bucket': bucket_name,
+                'Key': s3_key
+            }
+            fallback_response = s3_client.generate_presigned_url(
+                'put_object',
+                Params=fallback_params,
+                ExpiresIn=expiration
+            )
+            print("Fallback presigned URL generated successfully")
+            return fallback_response
+        except Exception as fallback_error:
+            print(f"Fallback also failed: {str(fallback_error)}")
+            raise e
 
 def generate_presigned_download_url(s3_key, expiration=3600):
     """Generate presigned URL for file download with CORS support"""
@@ -368,17 +391,15 @@ def handler(event, context):
                     'content_type': content_type,
                     'expires_in': expiration,
                     'method': 'PUT',
-                    'upload_instructions': {
+                    'postman_instructions': {
                         'method': 'PUT',
-                        'url': upload_url,
-                        'headers_note': 'Do not set Content-Type header - let browser auto-detect to avoid signature mismatch',
-                        'body': 'Send raw file data as request body',
-                        'cors_note': 'This URL supports CORS from any origin'
+                        'url': 'Use {{upload_url}} variable',
+                        'auth': 'No Auth (presigned URL handles authentication)',
+                        'headers': f'Set Content-Type: {content_type} (MUST match exactly)',
+                        'body': 'Select "Binary" and choose your file',
+                        'important': 'Content-Type header is REQUIRED and must match the value above'
                     },
-                    'frontend_example': {
-                        'javascript': 'fetch(upload_url, { method: "PUT", body: file })',
-                        'note': 'Do not set any custom headers to avoid 403 errors'
-                    }
+                    'instructions': f'Upload your file using PUT method with Content-Type: {content_type} header'
                 })
             }
             
