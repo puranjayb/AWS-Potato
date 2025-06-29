@@ -209,7 +209,9 @@ class BackendStack(Stack):
                 integration_responses=[{
                     'statusCode': '200',
                     'responseParameters': {
-                        'method.response.header.Access-Control-Allow-Origin': "'*'"
+                        'method.response.header.Access-Control-Allow-Origin': "'*'",
+                        'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                        'method.response.header.Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'"
                     }
                 }]
             ),
@@ -218,7 +220,33 @@ class BackendStack(Stack):
             method_responses=[{
                 'statusCode': '200',
                 'responseParameters': {
-                    'method.response.header.Access-Control-Allow-Origin': True
+                    'method.response.header.Access-Control-Allow-Origin': True,
+                    'method.response.header.Access-Control-Allow-Headers': True,
+                    'method.response.header.Access-Control-Allow-Methods': True
+                }
+            }]
+        )
+
+        # Add OPTIONS method for CORS preflight
+        files_api.add_method(
+            "OPTIONS",
+            apigw.MockIntegration(
+                integration_responses=[{
+                    'statusCode': '200',
+                    'responseParameters': {
+                        'method.response.header.Access-Control-Allow-Origin': "'*'",
+                        'method.response.header.Access-Control-Allow-Headers': "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'",
+                        'method.response.header.Access-Control-Allow-Methods': "'GET,POST,PUT,DELETE,OPTIONS'"
+                    }
+                }],
+                request_templates={"application/json": '{"statusCode": 200}'}
+            ),
+            method_responses=[{
+                'statusCode': '200',
+                'responseParameters': {
+                    'method.response.header.Access-Control-Allow-Origin': True,
+                    'method.response.header.Access-Control-Allow-Headers': True,
+                    'method.response.header.Access-Control-Allow-Methods': True
                 }
             }]
         )
