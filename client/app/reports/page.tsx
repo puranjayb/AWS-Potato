@@ -13,7 +13,6 @@ import {
   CheckCircle2,
   Clock,
   File,
-  ArrowLeft,
   RefreshCw,
   Image,
   Video,
@@ -207,7 +206,7 @@ export default function ReportsPage(): JSX.Element {
       toast.error(`Failed to delete file: ${errorMessage}`);
       console.error("Error deleting file:", error);
     }
-  }
+  };
 
   const handleLogout = (): void => {
     logout();
@@ -335,14 +334,7 @@ export default function ReportsPage(): JSX.Element {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center space-x-4">
-                <button
-                  className="group flex items-center space-x-2 hover:scale-105 transition-transform duration-300"
-                  onClick={() => router.push("/dashboard")}
-                  type="button"
-                >
-                  <ArrowLeft className="w-5 h-5 text-white/70 group-hover:text-white transition-colors duration-300" />
-                </button>
-                <div className="flex items-center space-x-4 group">
+                <div className="flex items-center space-x-4 group" onClick={() => router.push("/")}>
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-blue-500/25">
                     <Heart className="w-6 h-6 text-white animate-pulse" />
                   </div>
@@ -350,7 +342,6 @@ export default function ReportsPage(): JSX.Element {
                     <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                       HealthCare+
                     </h1>
-                    <p className="text-sm text-white/70">Medical Reports</p>
                   </div>
                 </div>
               </div>
@@ -380,6 +371,30 @@ export default function ReportsPage(): JSX.Element {
 
       {/* Main Content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Success Message */}
+        <div
+          className={`mb-8 transition-all duration-1000 delay-300 ${
+            isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0"
+          }`}
+        >
+          <div className="relative p-6 rounded-2xl backdrop-blur-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-400/30 shadow-2xl hover:shadow-green-500/20 transition-all duration-300">
+            <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl" />
+            <div className="relative z-10 flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center animate-bounce">
+                <Heart className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-green-300 flex items-center">
+                  🎉 Logged in successfully!
+                </h2>
+                <p className="text-green-200/80">
+                  Welcome to your healthcare dashboard!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Upload Progress Section */}
         {uploadProgress.size > 0 && (
           <div

@@ -247,28 +247,6 @@ export default function LoginPage(): JSX.Element {
                 )}
               </div>
 
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center group">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    checked={formData.rememberMe || false}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>): void => 
-                      handleInputChange('rememberMe', e.target.checked)
-                    }
-                    className="h-4 w-4 text-blue-400 focus:ring-blue-400/50 border-white/30 rounded bg-white/10 backdrop-blur-sm transition-all duration-300 hover:scale-110"
-                  />
-                  <label 
-                    htmlFor="remember-me" 
-                    className="ml-2 block text-sm text-white/70 group-hover:text-white/90 transition-colors duration-300 cursor-pointer"
-                  >
-                    Remember me
-                  </label>
-                </div>
-              </div>
-
               {/* Submit Button */}
               <button
                 type="button"

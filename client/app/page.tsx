@@ -9,6 +9,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/store/authStore";
 
 interface MousePosition {
   x: number;
@@ -38,6 +39,7 @@ export default function LandingPage(): JSX.Element {
   const [isClient, setIsClient] = useState<boolean>(false);
   const [particles, setParticles] = useState<FloatingParticle[]>([]);
   const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
 
   // Initialize particles only on client side to avoid hydration mismatch
   useEffect(() => {
@@ -205,20 +207,32 @@ export default function LandingPage(): JSX.Element {
               </nav>
 
               <div className="md:flex hidden items-center space-x-4">
-                <button
-                  className="px-6 py-2 text-white/70 hover:text-white border border-white/20 rounded-full backdrop-blur-sm bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105"
-                  onClick={handleLogin}
-                  type="button"
-                >
-                  Login
-                </button>
-                <button
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 transform"
-                  onClick={handleGetStarted}
-                  type="button"
-                >
-                  Get Started
-                </button>
+                {isAuthenticated ? (
+                  <button
+                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 transform cursor-pointer"
+                    onClick={() => router.push("/reports")}
+                    type="button"
+                  >
+                    Reports
+                  </button>
+                ) : (
+                  <div className="flex items-center space-x-4">
+                    <button
+                      className="px-6 py-2 text-white/70 hover:text-white border border-white/20 rounded-full backdrop-blur-sm bg-white/5 hover:bg-white/10 transition-all duration-300 hover:scale-105"
+                      onClick={handleLogin}
+                      type="button"
+                    >
+                      Login
+                    </button>
+                    <button
+                      className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105 transform"
+                      onClick={handleGetStarted}
+                      type="button"
+                    >
+                      Get Started
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

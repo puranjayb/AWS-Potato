@@ -37,7 +37,7 @@ export const useSignin = () => {
         toast.success('Logged in successfully!')
 
         // Redirect to the dashboard
-        router.push('/dashboard')
+        router.push('/reports')
       } else {
         // Authentication failed
         toast.error('Authentication failed')
