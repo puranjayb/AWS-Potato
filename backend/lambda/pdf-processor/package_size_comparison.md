@@ -2,24 +2,22 @@
 
 This document compares the package sizes between different PDF processing approaches for AWS Lambda deployment.
 
-## Current Implementation: Direct URL Processing
+## Current Implementation: Direct URL Processing with REST API
 
 ### Dependencies
 ```
 boto3==1.38.43
 psycopg2-binary==2.9.9
-google-generativeai==0.8.3
 requests==2.31.0
 ```
 
 ### Estimated Package Size
 - **boto3**: ~5-8MB
 - **psycopg2-binary**: ~3-5MB  
-- **google-generativeai**: ~8-12MB
 - **requests**: ~1-2MB
 - **Python runtime dependencies**: ~5-8MB
 
-**Total: ~22-35MB**
+**Total: ~14-23MB**
 
 ## Alternative Approaches (NOT USED)
 
@@ -48,12 +46,13 @@ pdfplumber==0.10.3
 |----------|-------------|-----------|----------------|
 | PyMuPDF | ~180-230MB | Baseline | ❌ Near limit |
 | pdfplumber | ~50-85MB | 65-75% | ✅ Comfortable |
-| **URL-based** | **~22-35MB** | **80-85%** | **✅ Excellent** |
+| **REST API** | **~14-23MB** | **87-90%** | **✅ Excellent** |
 
 ## Benefits of URL-based Approach
 
 ### Package Size Benefits
-- **Massive reduction**: 80-85% smaller than PyMuPDF
+- **Massive reduction**: 87-90% smaller than PyMuPDF
+- **No gRPC issues**: Uses REST API instead of SDK to avoid Lambda compatibility problems
 - **Fast cold starts**: Smaller packages load faster
 - **Easy deployment**: Well under AWS Lambda 250MB limit
 - **Lower storage costs**: Reduced package storage in S3
@@ -95,10 +94,11 @@ pdfplumber==0.10.3
 
 ## Conclusion
 
-The URL-based approach provides:
-- **85% package size reduction** compared to PyMuPDF
+The REST API approach provides:
+- **90% package size reduction** compared to PyMuPDF
+- **No gRPC compatibility issues** in AWS Lambda environment
 - **Superior processing capabilities** with Gemini's multimodal AI
 - **Better scalability** and **reduced maintenance**
 - **Optimal AWS Lambda deployment** well under size limits
 
-This architectural choice prioritizes both performance and maintainability while staying well within AWS Lambda constraints. 
+This architectural choice prioritizes both performance and maintainability while solving the common gRPC/Lambda compatibility issues. 

@@ -74,20 +74,43 @@ def generate_public_s3_url(s3_key, expiration=3600):
         print(f"Error generating public S3 URL: {str(e)}")
         raise e
 
-def process_pdf_with_gemini(pdf_url, question=None):
-    """Use Google AI Studio API to process PDF directly from URL"""
+def upload_pdf_to_gemini(pdf_url, api_key):
+    """Upload PDF to Gemini File API"""
     try:
-        import google.generativeai as genai
+        # Download PDF content
+        pdf_response = requests.get(pdf_url, timeout=30)
+        pdf_response.raise_for_status()
         
-        # Configure Google AI Studio API
+        # Upload to Gemini File API
+        upload_url = "https://generativelanguage.googleapis.com/upload/v1beta/files"
+        
+        headers = {
+            "X-Goog-Upload-Protocol": "multipart"
+        }
+        
+        files = {
+            "metadata": (None, '{"file": {"display_name": "uploaded_pdf"}}', "application/json"),
+            "file": ("document.pdf", pdf_response.content, "application/pdf")
+        }
+        
+        upload_url_with_key = f"{upload_url}?key={api_key}"
+        response = requests.post(upload_url_with_key, headers=headers, files=files, timeout=60)
+        response.raise_for_status()
+        
+        file_info = response.json()
+        return file_info.get("file", {}).get("uri")
+        
+    except Exception as e:
+        print(f"Error uploading PDF to Gemini: {str(e)}")
+        raise e
+
+def process_pdf_with_gemini_rest(pdf_url, question=None):
+    """Use Google AI Studio REST API to process PDF directly from URL"""
+    try:
+        # Get API key
         api_key = os.environ.get('GOOGLE_AI_STUDIO_API_KEY')
         if not api_key:
             raise ValueError("GOOGLE_AI_STUDIO_API_KEY environment variable is required")
-        
-        genai.configure(api_key=api_key)
-        
-        # Initialize the model with vision capabilities
-        model = genai.GenerativeModel('gemini-1.5-flash')
         
         if question:
             # For asking questions about the PDF
@@ -102,54 +125,97 @@ def process_pdf_with_gemini(pdf_url, question=None):
         else:
             # For initial processing - extract and summarize content
             prompt = """
-            Please analyze this PDF document and extract its text content. 
-            Provide a brief summary of what the document contains.
+            Please analyze this PDF document and provide a comprehensive summary. 
             Focus on the main topics, key information, and structure of the document.
+            Extract the most important details and present them in a clear, organized manner.
             """
         
-        # Upload the PDF file to Gemini
         try:
-            # Download the PDF content for upload to Gemini
-            response = requests.get(pdf_url)
+            # Method 1: Try uploading the PDF file
+            file_uri = upload_pdf_to_gemini(pdf_url, api_key)
+            
+            # Generate content using the uploaded file
+            generate_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": prompt},
+                            {"file_data": {"mime_type": "application/pdf", "file_uri": file_uri}}
+                        ]
+                    }
+                ]
+            }
+            
+            headers = {"Content-Type": "application/json"}
+            
+            response = requests.post(generate_url, json=payload, headers=headers, timeout=120)
             response.raise_for_status()
             
-            # Upload file to Gemini
-            uploaded_file = genai.upload_file(
-                path=None,
-                mime_type="application/pdf",
-                display_name="uploaded_pdf",
-                data=response.content
-            )
+            result = response.json()
             
-            # Process the file
-            response = model.generate_content([prompt, uploaded_file])
-            
-            # Clean up the uploaded file
-            genai.delete_file(uploaded_file.name)
-            
-            return {
-                "status": "success",
-                "answer": response.text,
-                "summary": response.text if not question else None
-            }
-            
+            if "candidates" in result and len(result["candidates"]) > 0:
+                text_response = result["candidates"][0]["content"]["parts"][0]["text"]
+                
+                return {
+                    "status": "success",
+                    "answer": text_response,
+                    "summary": text_response if not question else None
+                }
+            else:
+                raise Exception("No response generated from Gemini")
+                
         except Exception as upload_error:
-            print(f"Error uploading to Gemini, trying direct URL method: {str(upload_error)}")
+            print(f"File upload method failed: {str(upload_error)}")
             
-            # Fallback: Try with direct URL (if supported)
-            response = model.generate_content([
-                prompt + f"\n\nPDF URL: {pdf_url}\n\nNote: Please access and analyze the PDF from the provided URL."
-            ])
+            # Method 2: Fallback to text-only processing with URL reference
+            fallback_prompt = f"""
+            I need you to analyze a PDF document. While I cannot directly provide the PDF content, 
+            here is the information about it:
             
-            return {
-                "status": "success",
-                "answer": response.text,
-                "summary": response.text if not question else None,
-                "note": "Processed using URL reference method"
+            PDF URL: {pdf_url}
+            
+            {prompt}
+            
+            Please note that you would need to access the PDF from the URL to provide a complete analysis.
+            If you cannot access the URL directly, please indicate that the PDF needs to be processed 
+            through an alternative method.
+            """
+            
+            generate_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": fallback_prompt}
+                        ]
+                    }
+                ]
             }
             
+            headers = {"Content-Type": "application/json"}
+            
+            response = requests.post(generate_url, json=payload, headers=headers, timeout=60)
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            if "candidates" in result and len(result["candidates"]) > 0:
+                text_response = result["candidates"][0]["content"]["parts"][0]["text"]
+                
+                return {
+                    "status": "success",
+                    "answer": text_response,
+                    "summary": text_response if not question else None,
+                    "note": "Processed using URL reference method (PDF content not directly analyzed)"
+                }
+            else:
+                raise Exception("No response generated from Gemini")
+                
     except Exception as e:
-        print(f"Error calling Google AI Studio: {str(e)}")
+        print(f"Error calling Google AI Studio REST API: {str(e)}")
         return {
             "status": "error",
             "error_message": f"Error processing PDF with Google AI Studio: {str(e)}"
@@ -358,7 +424,7 @@ def handler(event, context):
                     pdf_url = generate_public_s3_url(signed_url)
                 
                 # Process PDF with Gemini to get summary
-                result = process_pdf_with_gemini(pdf_url)
+                result = process_pdf_with_gemini_rest(pdf_url)
                 
                 if result['status'] == 'success':
                     # Save processing record with URL and summary
@@ -450,7 +516,7 @@ def handler(event, context):
             
             try:
                 # Ask question using Gemini with the PDF URL
-                result = process_pdf_with_gemini(processing_record['pdf_url'], question)
+                result = process_pdf_with_gemini_rest(processing_record['pdf_url'], question)
                 
                 if result['status'] == 'success':
                     answer = result['answer']

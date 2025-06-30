@@ -71,10 +71,9 @@ POST /pdf-processor
 
 - `boto3`: AWS SDK for Python
 - `psycopg2-binary`: PostgreSQL adapter
-- `google-generativeai`: Google AI Studio client library
-- `requests`: HTTP library
+- `requests`: HTTP library for Google AI Studio REST API calls
 
-**Package Size**: ~20-30MB (vs 150-200MB with local PDF processing)
+**Package Size**: ~15-25MB (vs 150-200MB with local PDF processing)
 
 ## Database Tables
 
@@ -107,7 +106,8 @@ POST /pdf-processor
 
 ### Reduced Package Size
 - No heavy PDF processing libraries (PyMuPDF, pdfplumber, etc.)
-- Package size reduced from ~150-200MB to ~20-30MB
+- No gRPC dependencies (uses REST API instead of SDK)
+- Package size reduced from ~150-200MB to ~15-25MB
 - Faster cold starts and deployment
 
 ### Superior Processing
