@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "13bcd3ac-eb6a-4801-ac97-d7c82ef2d866",
 		"name": "AWS Potato API",
-		"description": "Complete API collection for AWS Potato application.\n\nAPI Base URL: https://cnlh88bgc7.execute-api.us-west-2.amazonaws.com/prod\n\nPassword Requirements:\n- Minimum 8 characters\n- At least 1 uppercase letter (A-Z)\n- At least 1 lowercase letter (a-z)\n- At least 1 number (0-9)\n- At least 1 symbol (!@#$%^&*)\n\nExamples:\n✅ Valid: \"Password123!\"\n❌ Invalid: \"password\" (no uppercase/numbers/symbols)\n❌ Invalid: \"Pass1!\" (too short)\n\nAPI Endpoints:\n- POST /auth - User authentication (signup, signin)\n- POST /projects - Project management (create_project, get_projects)\n- POST /file-upload - File operations (upload, confirm, get, list, download)\n\nAuthentication: Use Bearer token from signin response for protected endpoints.",
+		"description": "Complete API collection for AWS Potato application with PDF processing capabilities.\n\nAPI Base URL: https://cnlh88bgc7.execute-api.us-west-2.amazonaws.com/prod\n\nPassword Requirements:\n- Minimum 8 characters\n- At least 1 uppercase letter (A-Z)\n- At least 1 lowercase letter (a-z)\n- At least 1 number (0-9)\n- At least 1 symbol (!@#$%^&*)\n\nExamples:\n✅ Valid: \"Password123!\"\n❌ Invalid: \"password\" (no uppercase/numbers/symbols)\n❌ Invalid: \"Pass1!\" (too short)\n\nAPI Endpoints:\n- POST /auth - User authentication (signup, signin)\n- POST /projects - Project management (create_project, get_projects)\n- POST /file-upload - File operations (upload, confirm, get, list, download)\n- POST /pdf-processor - PDF processing with Google AI Studio (gRPC-free REST API)\n\nAuthentication: Use Bearer token from signin response for protected endpoints.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "29552605"
 	},
@@ -199,7 +199,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"create_project\",\n    \"user_id\": \"{{username}}\",\n    \"email\": \"test@example.com\"\n}"
+							"raw": "{\n    \"action\": \"create_project\",\n    \"project_name\": \"My Test Project\",\n    \"description\": \"Testing project creation\"\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/projects",
@@ -215,7 +215,29 @@
 					"response": []
 				},
 				{
-					"name": "Get User Projects",
+					"name": "Get Projects",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.test('Projects retrieved successfully', function () {",
+									"        pm.expect(response.projects).to.be.an('array');",
+									"    });",
+									"    ",
+									"    if (response.projects && response.projects.length > 0) {",
+									"        pm.collectionVariables.set('project_id', response.projects[0].project_id);",
+									"        console.log('First project ID saved:', response.projects[0].project_id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [
@@ -226,7 +248,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"get_projects\",\n    \"user_id\": \"{{username}}\"\n}"
+							"raw": "{\n    \"action\": \"get_projects\"\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/projects",
@@ -248,7 +270,7 @@
 			"name": "File Upload",
 			"item": [
 				{
-					"name": "Generate Upload URL",
+					"name": "Upload File (Initiate)",
 					"event": [
 						{
 							"listen": "test",
@@ -256,33 +278,17 @@
 								"exec": [
 									"if (pm.response.code === 200) {",
 									"    const response = pm.response.json();",
-									"    pm.test('Upload URL generated successfully', function () {",
-									"        pm.expect(response.upload_url).to.exist;",
-									"        pm.expect(response.file_id).to.exist;",
-									"        pm.expect(response.s3_key).to.exist;",
-									"        pm.expect(response.method).to.eql('PUT');",
-									"        pm.expect(response.expires_in).to.be.a('number');",
-									"    });",
-									"    if (response.upload_url) {",
+									"    if (response.upload_url && response.file_id) {",
 									"        pm.collectionVariables.set('upload_url', response.upload_url);",
 									"        pm.collectionVariables.set('pending_file_id', response.file_id);",
 									"        pm.collectionVariables.set('s3_key', response.s3_key);",
-									"        console.log('Upload URL generated for file:', response.file_id);",
+									"        console.log('Upload URL generated for file:', response.filename);",
+									"        console.log('File ID:', response.file_id);",
 									"        console.log('S3 Key:', response.s3_key);",
 									"    }",
-									"}",
-									"",
-									"// Test error responses",
-									"if (pm.response.code === 400) {",
-									"    const response = pm.response.json();",
-									"    pm.test('Error handled properly', function () {",
-									"        pm.expect(response.error).to.exist;",
-									"        pm.expect(response.message).to.exist;",
-									"    });",
 									"}"
 								],
-								"type": "text/javascript",
-								"packages": {}
+								"type": "text/javascript"
 							}
 						}
 					],
@@ -296,7 +302,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"upload\",\n    \"filename\": \"test-document.txt\",\n    \"content_type\": \"text/plain\",\n    \"project_id\": \"{{project_id}}\",\n    \"expiration\": 3600\n}"
+							"raw": "{\n    \"action\": \"upload\",\n    \"filename\": \"test-document.pdf\",\n    \"content_type\": \"application/pdf\",\n    \"file_size\": 1024000\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/file-upload",
@@ -307,12 +313,12 @@
 								"file-upload"
 							]
 						},
-						"description": "Generate a presigned URL for uploading files directly to S3. This creates a file record with 'pending' status and returns a URL for direct S3 upload."
+						"description": "Initiate file upload and get presigned S3 URL"
 					},
 					"response": []
 				},
 				{
-					"name": "Upload to S3 (Using Presigned URL)",
+					"name": "Upload to S3 (Direct)",
 					"request": {
 						"auth": {
 							"type": "noauth"
@@ -327,7 +333,7 @@
 						"body": {
 							"mode": "file",
 							"file": {
-								"src": "/Users/aryanraj/Library/Mobile Documents/com~apple~CloudDocs/Aryan_resume_new.pdf"
+								"src": ""
 							}
 						},
 						"url": {
@@ -336,7 +342,7 @@
 								"{{upload_url}}"
 							]
 						},
-						"description": "Upload file directly to S3 using the presigned URL. Select a file in the Body tab."
+						"description": "Upload file directly to S3 using the presigned URL. Select a file in the body."
 					},
 					"response": []
 				},
@@ -351,19 +357,15 @@
 									"    const response = pm.response.json();",
 									"    pm.test('Upload confirmed successfully', function () {",
 									"        pm.expect(response.message).to.include('confirmed successfully');",
-									"        pm.expect(response.file_metadata).to.exist;",
-									"        pm.expect(response.file_metadata.file_id).to.exist;",
+									"        pm.expect(response.file_id).to.exist;",
+									"        pm.expect(response.filename).to.exist;",
+									"        pm.expect(response.file_size).to.exist;",
+									"        pm.expect(response.s3_key).to.exist;",
 									"    });",
-									"    ",
-									"    // Save the confirmed file ID for testing",
-									"    if (response.file_metadata && response.file_metadata.file_id) {",
-									"        pm.collectionVariables.set('last_file_id', response.file_metadata.file_id);",
-									"        console.log('Confirmed file ID saved:', response.file_metadata.file_id);",
-									"        console.log('File name:', response.file_metadata.original_filename);",
-									"        console.log('Upload status:', response.file_metadata.upload_status);",
+									"    if (response.file_id) {",
+									"        pm.collectionVariables.set('last_file_id', response.file_id);",
+									"        console.log('File confirmed, ID saved:', response.file_id);",
 									"    }",
-									"} else {",
-									"    console.log('Upload confirmation failed with status:', pm.response.code);",
 									"}"
 								],
 								"type": "text/javascript"
@@ -380,7 +382,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"action\": \"confirm\",\n    \"file_id\": \"{{pending_file_id}}\",\n    \"file_size\": 50000000\n}"
+							"raw": "{\n    \"action\": \"confirm\",\n    \"file_id\": \"{{pending_file_id}}\"\n}"
 						},
 						"url": {
 							"raw": "{{api_url}}/file-upload",
@@ -391,74 +393,12 @@
 								"file-upload"
 							]
 						},
-						"description": "Confirm successful upload to S3 and update file status to 'uploaded'. Call this after successfully uploading a file via presigned URL."
+						"description": "Confirm that file was successfully uploaded to S3 and finalize the file record"
 					},
 					"response": []
 				},
 				{
-					"name": "List Files",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    const response = pm.response.json();",
-									"    pm.test('Files listed successfully', function () {",
-									"        pm.expect(response.files).to.be.an('array');",
-									"    });",
-									"    ",
-									"    console.log('Found', response.files.length, 'files');",
-									"    ",
-									"    // Save the first file ID for testing purposes",
-									"    if (response.files.length > 0) {",
-									"        const firstFile = response.files[0];",
-									"        pm.collectionVariables.set('last_file_id', firstFile.file_id);",
-									"        console.log('First file ID saved:', firstFile.file_id);",
-									"        console.log('First file name:', firstFile.original_filename);",
-									"        console.log('Upload status:', firstFile.upload_status);",
-									"    } else {",
-									"        console.log('No files found - upload a file first');",
-									"        pm.collectionVariables.set('last_file_id', '');",
-									"    }",
-									"    ",
-									"    // List all files for reference",
-									"    response.files.forEach((file, index) => {",
-									"        console.log(`File ${index + 1}: ${file.original_filename} (${file.file_id}) - ${file.upload_status}`);",
-									"    });",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"action\": \"list\",\n    \"project_id\": \"{{project_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{api_url}}/file-upload",
-							"host": [
-								"{{api_url}}"
-							],
-							"path": [
-								"file-upload"
-							]
-						},
-						"description": "List all files for the authenticated user, optionally filtered by project_id."
-					},
-					"response": []
-				},
-				{
-					"name": "Get File Metadata",
+					"name": "Get File Info",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -480,7 +420,34 @@
 								"file-upload"
 							]
 						},
-						"description": "Get detailed metadata for a specific file by file_id."
+						"description": "Get detailed information about a specific file"
+					},
+					"response": []
+				},
+				{
+					"name": "List Files",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"list\",\n    \"limit\": 10,\n    \"offset\": 0\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/file-upload",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"file-upload"
+							]
+						},
+						"description": "List all files for the authenticated user with pagination"
 					},
 					"response": []
 				},
@@ -612,6 +579,393 @@
 				}
 			],
 			"description": "File upload and management endpoints with base64 and presigned URL support (requires authentication)"
+		},
+		{
+			"name": "PDF Processor",
+			"item": [
+				{
+					"name": "Process PDF",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains processing_id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('processing_id');",
+									"    pm.collectionVariables.set('processing_id', jsonData.processing_id);",
+									"});",
+									"",
+									"pm.test(\"Processing status is completed\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('completed');",
+									"});",
+									"",
+									"pm.test(\"Response contains summary\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('summary');",
+									"    pm.expect(jsonData.summary).to.be.a('string');",
+									"    pm.expect(jsonData.summary.length).to.be.greaterThan(0);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"process_pdf\",\n    \"file_id\": \"{{last_file_id}}\",\n    \"signed_url\": \"{{download_url}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Process a PDF file using Google AI Studio REST API (gRPC-free). Uses file_id from uploaded file and download_url as signed_url."
+					},
+					"response": []
+				},
+				{
+					"name": "Ask Question",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains answer\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('answer');",
+									"    pm.expect(jsonData.answer).to.be.a('string');",
+									"    pm.expect(jsonData.answer.length).to.be.greaterThan(0);",
+									"});",
+									"",
+									"pm.test(\"Response contains question\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('question');",
+									"});",
+									"",
+									"pm.test(\"Response contains timestamp\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('timestamp');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"ask_question\",\n    \"processing_id\": \"{{processing_id}}\",\n    \"question\": \"What is the main topic of this document?\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Ask a question about the processed PDF using AI"
+					},
+					"response": []
+				},
+				{
+					"name": "Ask Question - Document Summary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"ask_question\",\n    \"processing_id\": \"{{processing_id}}\",\n    \"question\": \"Can you provide a summary of the document?\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Get a comprehensive summary of the PDF document"
+					},
+					"response": []
+				},
+				{
+					"name": "Ask Question - Key Points",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"ask_question\",\n    \"processing_id\": \"{{processing_id}}\",\n    \"question\": \"What are the key points mentioned in this document?\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Extract key points from the PDF document"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Conversations",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains conversations array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('conversations');",
+									"    pm.expect(jsonData.conversations).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Response contains total_conversations\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('total_conversations');",
+									"    pm.expect(jsonData.total_conversations).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"get_conversations\",\n    \"processing_id\": \"{{processing_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Get conversation history for a PDF processing session"
+					},
+					"response": []
+				}
+			],
+			"description": "PDF processing endpoints with Google AI Studio REST API integration (gRPC-free, requires authentication)"
+		},
+		{
+			"name": "PDF Error Cases",
+			"item": [
+				{
+					"name": "Process PDF - Missing file_id",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"process_pdf\",\n    \"signed_url\": \"test-url\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Test error handling when file_id is missing"
+					},
+					"response": []
+				},
+				{
+					"name": "Ask Question - Invalid processing_id",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Response contains error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"ask_question\",\n    \"processing_id\": \"invalid-uuid\",\n    \"question\": \"Test question\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Test error handling with invalid processing_id"
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Action",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Response contains error\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.eql('Invalid action');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"invalid_action\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/pdf-processor",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"pdf-processor"
+							]
+						},
+						"description": "Test error handling with invalid action parameter"
+					},
+					"response": []
+				}
+			],
+			"description": "Error handling test cases for PDF processor endpoints"
+		},
+		{
+			"name": "CORS Preflight",
+			"request": {
+				"method": "OPTIONS",
+				"header": [],
+				"url": {
+					"raw": "{{api_url}}/pdf-processor",
+					"host": [
+						"{{api_url}}"
+					],
+					"path": [
+						"pdf-processor"
+					]
+				},
+				"description": "Test CORS preflight request for PDF processor"
+			},
+			"response": []
 		}
 	],
 	"auth": {
@@ -686,6 +1040,11 @@
 		{
 			"key": "last_file_id",
 			"value": ""
+		},
+		{
+			"key": "processing_id",
+			"value": "",
+			"type": "string"
 		}
 	]
 }
