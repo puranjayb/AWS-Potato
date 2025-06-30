@@ -6,8 +6,9 @@ import uuid
 import requests
 from datetime import datetime
 from botocore.exceptions import ClientError
-import fitz  # PyMuPDF for PDF processing
+import pdfplumber
 import base64
+import io
 
 # CORS headers for all responses
 CORS_HEADERS = {
@@ -73,18 +74,21 @@ def download_pdf_from_s3(s3_key):
         raise e
 
 def extract_text_from_pdf(pdf_content):
-    """Extract text content from PDF using PyMuPDF"""
+    """Extract text content from PDF using pdfplumber"""
     try:
-        # Open PDF from bytes
-        pdf_document = fitz.open(stream=pdf_content, filetype="pdf")
+        # Create a BytesIO object from the PDF content
+        pdf_file = io.BytesIO(pdf_content)
         
         text_content = ""
-        for page_num in range(pdf_document.page_count):
-            page = pdf_document[page_num]
-            text_content += f"\n--- Page {page_num + 1} ---\n"
-            text_content += page.get_text()
+        with pdfplumber.open(pdf_file) as pdf:
+            for page_num, page in enumerate(pdf.pages):
+                text_content += f"\n--- Page {page_num + 1} ---\n"
+                page_text = page.extract_text()
+                if page_text:
+                    text_content += page_text
+                else:
+                    text_content += "[No text found on this page]"
         
-        pdf_document.close()
         return text_content
     except Exception as e:
         print(f"Error extracting text from PDF: {str(e)}")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script for PDF Processor Lambda
+Test script for PDF Processor Lambda with pdfplumber
 """
 
 import json

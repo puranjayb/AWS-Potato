@@ -4,7 +4,7 @@ This Lambda function processes PDFs using Google's Vertex AI Agent Development K
 
 ## Features
 
-- **PDF Text Extraction**: Extracts text content from PDF files using PyMuPDF
+- **PDF Text Extraction**: Extracts text content from PDF files using pdfplumber
 - **AI-Powered Q&A**: Uses Google's AI Studio Gemini model to answer questions about PDF content
 - **Conversation History**: Stores and retrieves conversation history for each PDF
 - **Secure Access**: User authentication and authorization using Cognito
@@ -51,7 +51,7 @@ POST /pdf-processor
 - `boto3`: AWS SDK for Python
 - `psycopg2-binary`: PostgreSQL adapter
 - `google-generativeai`: Google AI Studio client library
-- `PyMuPDF`: PDF processing library
+- `pdfplumber`: Lightweight PDF processing library
 - `requests`: HTTP library
 
 ## Database Tables
