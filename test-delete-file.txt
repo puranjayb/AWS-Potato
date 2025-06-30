@@ -1,0 +1,13 @@
+This is a test file for testing the upload and delete functionality.
+Created on: 2025-06-30
+Purpose: Test file upload and delete flow in AWS Potato API
+
+This file will be:
+1. Uploaded to S3 via presigned URL
+2. Confirmed in the database
+3. Listed in user files
+4. Downloaded via presigned URL
+5. Deleted from both S3 and database
+
+Test content with some special characters: !@#$%^&*()
+Unicode test: 🥔 ← That's a potato emoji!

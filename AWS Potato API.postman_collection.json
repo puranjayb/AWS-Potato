@@ -342,6 +342,34 @@
 				},
 				{
 					"name": "Confirm Upload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.test('Upload confirmed successfully', function () {",
+									"        pm.expect(response.message).to.include('confirmed successfully');",
+									"        pm.expect(response.file_metadata).to.exist;",
+									"        pm.expect(response.file_metadata.file_id).to.exist;",
+									"    });",
+									"    ",
+									"    // Save the confirmed file ID for testing",
+									"    if (response.file_metadata && response.file_metadata.file_id) {",
+									"        pm.collectionVariables.set('last_file_id', response.file_metadata.file_id);",
+									"        console.log('Confirmed file ID saved:', response.file_metadata.file_id);",
+									"        console.log('File name:', response.file_metadata.original_filename);",
+									"        console.log('Upload status:', response.file_metadata.upload_status);",
+									"    }",
+									"} else {",
+									"    console.log('Upload confirmation failed with status:', pm.response.code);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [
@@ -369,6 +397,41 @@
 				},
 				{
 					"name": "List Files",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.test('Files listed successfully', function () {",
+									"        pm.expect(response.files).to.be.an('array');",
+									"    });",
+									"    ",
+									"    console.log('Found', response.files.length, 'files');",
+									"    ",
+									"    // Save the first file ID for testing purposes",
+									"    if (response.files.length > 0) {",
+									"        const firstFile = response.files[0];",
+									"        pm.collectionVariables.set('last_file_id', firstFile.file_id);",
+									"        console.log('First file ID saved:', firstFile.file_id);",
+									"        console.log('First file name:', firstFile.original_filename);",
+									"        console.log('Upload status:', firstFile.upload_status);",
+									"    } else {",
+									"        console.log('No files found - upload a file first');",
+									"        pm.collectionVariables.set('last_file_id', '');",
+									"    }",
+									"    ",
+									"    // List all files for reference",
+									"    response.files.forEach((file, index) => {",
+									"        console.log(`File ${index + 1}: ${file.original_filename} (${file.file_id}) - ${file.upload_status}`);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [
@@ -462,6 +525,70 @@
 							]
 						},
 						"description": "Generate a presigned URL for downloading a file from S3. The URL expires after the specified time."
+					},
+					"response": []
+				},
+				{
+					"name": "Delete File",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.test('File deleted successfully', function () {",
+									"        pm.expect(response.message).to.include('deleted successfully');",
+									"        pm.expect(response.file_id).to.exist;",
+									"        pm.expect(response.filename).to.exist;",
+									"        pm.expect(response.deleted_at).to.exist;",
+									"    });",
+									"    console.log('File deleted:', response.filename);",
+									"    console.log('File ID:', response.file_id);",
+									"    ",
+									"    // Clear the deleted file from variables",
+									"    if (response.file_id === pm.collectionVariables.get('last_file_id')) {",
+									"        pm.collectionVariables.set('last_file_id', '');",
+									"        console.log('Cleared last_file_id variable');",
+									"    }",
+									"} else if (pm.response.code === 404) {",
+									"    pm.test('File not found error', function () {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.error).to.include('File not found');",
+									"    });",
+									"} else if (pm.response.code === 400) {",
+									"    pm.test('Bad request error', function () {",
+									"        const response = pm.response.json();",
+									"        pm.expect(response.error).to.exist;",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"action\": \"delete\",\n    \"file_id\": \"{{last_file_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{api_url}}/file-upload",
+							"host": [
+								"{{api_url}}"
+							],
+							"path": [
+								"file-upload"
+							]
+						},
+						"description": "Delete a file from both S3 storage and database. Requires file_id and user must own the file."
 					},
 					"response": []
 				},

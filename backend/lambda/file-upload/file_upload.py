@@ -306,6 +306,74 @@ def extract_user_info(event):
     
     return user_id, user_email
 
+def delete_file_from_s3(s3_key):
+    """Delete file from S3 bucket"""
+    s3_client = boto3.client('s3')
+    try:
+        bucket_name = os.environ['S3_BUCKET_NAME']
+        
+        print(f"Deleting file from S3: {s3_key}")
+        
+        s3_client.delete_object(
+            Bucket=bucket_name,
+            Key=s3_key
+        )
+        
+        print(f"Successfully deleted file from S3: {s3_key}")
+        return True
+        
+    except Exception as e:
+        print(f"Error deleting file from S3: {str(e)}")
+        print(f"S3 Key: {s3_key}")
+        print(f"Bucket: {os.environ.get('S3_BUCKET_NAME', 'NOT_SET')}")
+        raise e
+
+def delete_file_metadata(file_id, user_id):
+    """Delete file metadata from database"""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # First check if file exists and belongs to user
+            cur.execute(
+                """
+                SELECT s3_key, original_filename 
+                FROM files 
+                WHERE file_id = %s AND user_id = %s
+                """,
+                (file_id, user_id)
+            )
+            result = cur.fetchone()
+            
+            if not result:
+                return None  # File not found or access denied
+            
+            s3_key, filename = result
+            
+            # Delete the file record
+            cur.execute(
+                """
+                DELETE FROM files 
+                WHERE file_id = %s AND user_id = %s
+                """,
+                (file_id, user_id)
+            )
+            
+            deleted_count = cur.rowcount
+            conn.commit()
+            
+            if deleted_count > 0:
+                return {
+                    's3_key': s3_key,
+                    'filename': filename
+                }
+            return None
+            
+    except Exception as e:
+        print(f"Error deleting file metadata: {str(e)}")
+        raise e
+    finally:
+        conn.close()
+
 def handler(event, context):
     """Main Lambda handler for simplified file upload"""
     try:
@@ -553,13 +621,72 @@ def handler(event, context):
                 })
             }
             
+        elif action == 'delete':
+            # Delete a file (metadata and S3 object)
+            file_id = body.get('file_id')
+            
+            if not file_id:
+                return {
+                    'statusCode': 400,
+                    'headers': CORS_HEADERS,
+                    'body': json.dumps({
+                        'error': 'Missing required fields',
+                        'message': 'file_id is required'
+                    })
+                }
+            
+            try:
+                # Delete the file metadata from the database first (includes validation)
+                deleted_metadata = delete_file_metadata(file_id, user_id)
+                
+                if not deleted_metadata:
+                    return {
+                        'statusCode': 404,
+                        'headers': CORS_HEADERS,
+                        'body': json.dumps({
+                            'error': 'File not found',
+                            'message': 'File not found or access denied'
+                        })
+                    }
+                
+                s3_key = deleted_metadata['s3_key']
+                filename = deleted_metadata['filename']
+                
+                # Delete the file from S3
+                delete_file_from_s3(s3_key)
+                
+                print(f"Successfully deleted file: {filename} (ID: {file_id})")
+                
+                return {
+                    'statusCode': 200,
+                    'headers': CORS_HEADERS,
+                    'body': json.dumps({
+                        'message': 'File deleted successfully',
+                        'file_id': file_id,
+                        'filename': filename,
+                        's3_key': s3_key,
+                        'deleted_at': datetime.now().isoformat()
+                    })
+                }
+                
+            except Exception as delete_error:
+                print(f"Error during file deletion: {str(delete_error)}")
+                return {
+                    'statusCode': 500,
+                    'headers': CORS_HEADERS,
+                    'body': json.dumps({
+                        'error': 'Delete operation failed',
+                        'message': f'Failed to delete file: {str(delete_error)}'
+                    })
+                }
+            
         else:
             return {
                 'statusCode': 400,
                 'headers': CORS_HEADERS,
                 'body': json.dumps({
                     'error': 'Invalid action',
-                    'message': 'Supported actions: upload, confirm, get, list, download'
+                    'message': 'Supported actions: upload, confirm, get, list, download, delete'
                 })
             }
             
@@ -575,4 +702,4 @@ def handler(event, context):
                 'error': 'Internal Server Error',
                 'message': str(e)
             })
-        } 
+        }
