@@ -128,6 +128,21 @@ class BackendStack(Stack):
             }
         )
 
+        # Create PDF Processor Lambda
+        pdf_processor_handler = _lambda.Function(
+            self, "PdfProcessorFunction",
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            handler="pdf_processor.handler",
+            code=_lambda.Code.from_asset("lambda/pdf-processor"),
+            timeout=Duration.seconds(300),  # 5 minutes for PDF processing
+            memory_size=1024,  # More memory for PDF processing
+            environment={
+                "S3_BUCKET_NAME": file_storage_bucket.bucket_name,
+                "DATABASE_URL": neon_database_url,
+                "GOOGLE_AI_STUDIO_API_KEY": "your-google-ai-studio-api-key"  # Replace with actual API key
+            }
+        )
+
         # Update auth handler environment with projects Lambda ARN
         auth_handler.add_environment("PROJECTS_LAMBDA_ARN", projects_handler.function_arn)
 
@@ -148,6 +163,26 @@ class BackendStack(Stack):
                     "s3:GetObjectVersion",
                     "s3:PutObjectAcl",
                     "s3:GetObjectAcl"
+                ],
+                resources=[
+                    file_storage_bucket.bucket_arn,
+                    f"{file_storage_bucket.bucket_arn}/*"
+                ]
+            )
+        )
+
+        # Grant PDF processor Lambda access to S3 bucket
+        file_storage_bucket.grant_read_write(pdf_processor_handler)
+        
+        # Grant PDF processor Lambda additional S3 permissions
+        pdf_processor_handler.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:GetObjectVersion"
                 ],
                 resources=[
                     file_storage_bucket.bucket_arn,
@@ -196,6 +231,7 @@ class BackendStack(Stack):
         auth_api = api.root.add_resource("auth")
         projects_api = api.root.add_resource("projects")
         files_api = api.root.add_resource("file-upload")
+        pdf_processor_api = api.root.add_resource("pdf-processor")
 
         # Add methods to auth resource
         auth_api.add_method(
@@ -222,6 +258,17 @@ class BackendStack(Stack):
             "POST",
             apigw.LambdaIntegration(
                 file_upload_handler,
+                proxy=True
+            ),
+            authorizer=auth,
+            authorization_type=apigw.AuthorizationType.COGNITO
+        )
+
+        # Add methods to PDF processor resource
+        pdf_processor_api.add_method(
+            "POST",
+            apigw.LambdaIntegration(
+                pdf_processor_handler,
                 proxy=True
             ),
             authorizer=auth,
