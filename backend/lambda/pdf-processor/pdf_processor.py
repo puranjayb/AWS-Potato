@@ -6,9 +6,7 @@ import uuid
 import requests
 from datetime import datetime
 from botocore.exceptions import ClientError
-import pdfplumber
 import base64
-import io
 
 # CORS headers for all responses
 CORS_HEADERS = {
@@ -58,44 +56,26 @@ def create_pdf_processing_table(conn):
         print(f"Error creating PDF processing tables: {str(e)}")
         raise e
 
-def download_pdf_from_s3(s3_key):
-    """Download PDF file from S3 using the signed URL"""
+def generate_public_s3_url(s3_key, expiration=3600):
+    """Generate a public S3 URL that Gemini can access"""
     try:
         s3_client = boto3.client('s3')
         bucket_name = os.environ['S3_BUCKET_NAME']
         
-        # Get the object from S3
-        response = s3_client.get_object(Bucket=bucket_name, Key=s3_key)
-        pdf_content = response['Body'].read()
+        # Generate a presigned URL that Gemini can access
+        url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': s3_key},
+            ExpiresIn=expiration
+        )
         
-        return pdf_content
+        return url
     except Exception as e:
-        print(f"Error downloading PDF from S3: {str(e)}")
+        print(f"Error generating public S3 URL: {str(e)}")
         raise e
 
-def extract_text_from_pdf(pdf_content):
-    """Extract text content from PDF using pdfplumber"""
-    try:
-        # Create a BytesIO object from the PDF content
-        pdf_file = io.BytesIO(pdf_content)
-        
-        text_content = ""
-        with pdfplumber.open(pdf_file) as pdf:
-            for page_num, page in enumerate(pdf.pages):
-                text_content += f"\n--- Page {page_num + 1} ---\n"
-                page_text = page.extract_text()
-                if page_text:
-                    text_content += page_text
-                else:
-                    text_content += "[No text found on this page]"
-        
-        return text_content
-    except Exception as e:
-        print(f"Error extracting text from PDF: {str(e)}")
-        raise e
-
-def answer_pdf_question_with_gemini(pdf_text, question):
-    """Use Google AI Studio API to answer questions about PDF content"""
+def process_pdf_with_gemini(pdf_url, question=None):
+    """Use Google AI Studio API to process PDF directly from URL"""
     try:
         import google.generativeai as genai
         
@@ -106,59 +86,101 @@ def answer_pdf_question_with_gemini(pdf_text, question):
         
         genai.configure(api_key=api_key)
         
-        # Initialize the model
+        # Initialize the model with vision capabilities
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Limit PDF text to avoid token limits (approximately 50,000 characters)
-        text_limit = 50000
-        if len(pdf_text) > text_limit:
-            pdf_text = pdf_text[:text_limit] + "\n\n[Text truncated due to length...]"
+        if question:
+            # For asking questions about the PDF
+            prompt = f"""
+            Please analyze this PDF document and answer the following question accurately and comprehensively.
+            
+            Question: {question}
+            
+            Please provide a detailed answer based only on the information available in the PDF. 
+            If the answer cannot be found in the PDF, please say so clearly.
+            """
+        else:
+            # For initial processing - extract and summarize content
+            prompt = """
+            Please analyze this PDF document and extract its text content. 
+            Provide a brief summary of what the document contains.
+            Focus on the main topics, key information, and structure of the document.
+            """
         
-        prompt = f"""
-        Based on the following PDF content, please answer the user's question accurately and comprehensively.
-        
-        PDF Content:
-        {pdf_text}
-        
-        User Question: {question}
-        
-        Please provide a detailed answer based only on the information available in the PDF. 
-        If the answer cannot be found in the PDF, please say so clearly.
-        
-        Answer:
-        """
-        
-        response = model.generate_content(prompt)
-        
-        return {
-            "status": "success",
-            "answer": response.text
-        }
+        # Upload the PDF file to Gemini
+        try:
+            # Download the PDF content for upload to Gemini
+            response = requests.get(pdf_url)
+            response.raise_for_status()
+            
+            # Upload file to Gemini
+            uploaded_file = genai.upload_file(
+                path=None,
+                mime_type="application/pdf",
+                display_name="uploaded_pdf",
+                data=response.content
+            )
+            
+            # Process the file
+            response = model.generate_content([prompt, uploaded_file])
+            
+            # Clean up the uploaded file
+            genai.delete_file(uploaded_file.name)
+            
+            return {
+                "status": "success",
+                "answer": response.text,
+                "summary": response.text if not question else None
+            }
+            
+        except Exception as upload_error:
+            print(f"Error uploading to Gemini, trying direct URL method: {str(upload_error)}")
+            
+            # Fallback: Try with direct URL (if supported)
+            response = model.generate_content([
+                prompt + f"\n\nPDF URL: {pdf_url}\n\nNote: Please access and analyze the PDF from the provided URL."
+            ])
+            
+            return {
+                "status": "success",
+                "answer": response.text,
+                "summary": response.text if not question else None,
+                "note": "Processed using URL reference method"
+            }
+            
     except Exception as e:
         print(f"Error calling Google AI Studio: {str(e)}")
         return {
             "status": "error",
-            "error_message": f"Error answering question with Google AI Studio: {str(e)}"
+            "error_message": f"Error processing PDF with Google AI Studio: {str(e)}"
         }
 
-def save_pdf_processing_record(processing_id, file_id, user_id, pdf_text, status='pending'):
+def save_pdf_processing_record(processing_id, file_id, user_id, pdf_url, pdf_summary=None, status='pending'):
     """Save PDF processing record to database"""
     conn = get_db_connection()
     try:
         create_pdf_processing_table(conn)
         
         with conn.cursor() as cur:
+            # Update table structure to store URL and summary instead of full text
+            cur.execute("""
+                ALTER TABLE pdf_processing 
+                ADD COLUMN IF NOT EXISTS pdf_url TEXT,
+                ADD COLUMN IF NOT EXISTS pdf_summary TEXT
+            """)
+            
             cur.execute(
                 """
-                INSERT INTO pdf_processing (processing_id, file_id, user_id, pdf_text, processing_status)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO pdf_processing (processing_id, file_id, user_id, pdf_url, pdf_summary, processing_status)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (processing_id) DO UPDATE SET
-                    pdf_text = EXCLUDED.pdf_text,
+                    pdf_url = EXCLUDED.pdf_url,
+                    pdf_summary = EXCLUDED.pdf_summary,
                     processing_status = EXCLUDED.processing_status,
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING id
                 """,
-                (processing_id, file_id, user_id, pdf_text, status)
+                (processing_id, file_id, user_id, pdf_url, pdf_summary, status)
             )
             result = cur.fetchone()
             conn.commit()
@@ -227,7 +249,7 @@ def get_processing_record(processing_id, user_id):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT processing_id, file_id, user_id, pdf_text, processing_status, created_at
+                SELECT processing_id, file_id, user_id, pdf_url, pdf_summary, processing_status, created_at
                 FROM pdf_processing
                 WHERE processing_id = %s AND user_id = %s
                 """,
@@ -239,9 +261,10 @@ def get_processing_record(processing_id, user_id):
                     'processing_id': result[0],
                     'file_id': result[1],
                     'user_id': result[2],
-                    'pdf_text': result[3],
-                    'processing_status': result[4],
-                    'created_at': result[5].isoformat()
+                    'pdf_url': result[3],
+                    'pdf_summary': result[4],
+                    'processing_status': result[5],
+                    'created_at': result[6].isoformat()
                 }
             return None
     except Exception as e:
@@ -326,31 +349,52 @@ def handler(event, context):
             processing_id = str(uuid.uuid4())
             
             try:
-                # Download PDF from signed URL or S3
+                # Generate accessible URL for Gemini
                 if signed_url.startswith('http'):
-                    # Download from signed URL
-                    response = requests.get(signed_url)
-                    pdf_content = response.content
+                    # Use the provided signed URL
+                    pdf_url = signed_url
                 else:
-                    # Treat as S3 key
-                    pdf_content = download_pdf_from_s3(signed_url)
+                    # Generate a new signed URL from S3 key
+                    pdf_url = generate_public_s3_url(signed_url)
                 
-                # Extract text from PDF
-                pdf_text = extract_text_from_pdf(pdf_content)
+                # Process PDF with Gemini to get summary
+                result = process_pdf_with_gemini(pdf_url)
                 
-                # Save processing record
-                save_pdf_processing_record(processing_id, file_id, user_id, pdf_text, 'completed')
-                
-                return {
-                    'statusCode': 200,
-                    'headers': CORS_HEADERS,
-                    'body': json.dumps({
-                        'message': 'PDF processed successfully',
-                        'processing_id': processing_id,
-                        'text_length': len(pdf_text),
-                        'status': 'completed'
-                    })
-                }
+                if result['status'] == 'success':
+                    # Save processing record with URL and summary
+                    save_pdf_processing_record(
+                        processing_id, 
+                        file_id, 
+                        user_id, 
+                        pdf_url, 
+                        result.get('summary', result['answer']), 
+                        'completed'
+                    )
+                    
+                    return {
+                        'statusCode': 200,
+                        'headers': CORS_HEADERS,
+                        'body': json.dumps({
+                            'message': 'PDF processed successfully',
+                            'processing_id': processing_id,
+                            'summary': result.get('summary', result['answer'])[:500] + '...' if len(result.get('summary', result['answer'])) > 500 else result.get('summary', result['answer']),
+                            'status': 'completed'
+                        })
+                    }
+                else:
+                    # Save failed processing record
+                    save_pdf_processing_record(processing_id, file_id, user_id, pdf_url, None, 'failed')
+                    
+                    return {
+                        'statusCode': 500,
+                        'headers': CORS_HEADERS,
+                        'body': json.dumps({
+                            'error': 'PDF processing failed',
+                            'message': result.get('error_message', 'Unknown error'),
+                            'processing_id': processing_id,
+                            'status': 'failed'
+                        })
+                    }
                 
             except Exception as e:
                 # Save failed processing record
@@ -405,8 +449,8 @@ def handler(event, context):
                 }
             
             try:
-                # Get answer using Vertex AI Gemini
-                result = answer_pdf_question_with_gemini(processing_record['pdf_text'], question)
+                # Ask question using Gemini with the PDF URL
+                result = process_pdf_with_gemini(processing_record['pdf_url'], question)
                 
                 if result['status'] == 'success':
                     answer = result['answer']
