@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "PDF Processor API",
-    "description": "Test collection for PDF processing lambda with Google AI Studio integration",
+    "description": "Test collection for PDF processing lambda with Google AI Studio REST API integration (gRPC-free)",
     "version": "1.0.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -47,16 +47,23 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "",
-                  "pm.test(\"Response contains processing_id\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('processing_id');",
-                  "    pm.collectionVariables.set('processing_id', jsonData.processing_id);",
-                  "});",
-                  "",
-                  "pm.test(\"Processing status is completed\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.status).to.eql('completed');",
-                  "});"
+                                  "pm.test(\"Response contains processing_id\", function () {",
+                "    var jsonData = pm.response.json();",
+                "    pm.expect(jsonData).to.have.property('processing_id');",
+                "    pm.collectionVariables.set('processing_id', jsonData.processing_id);",
+                "});",
+                "",
+                "pm.test(\"Processing status is completed\", function () {",
+                "    var jsonData = pm.response.json();",
+                "    pm.expect(jsonData.status).to.eql('completed');",
+                "});",
+                "",
+                "pm.test(\"Response contains summary\", function () {",
+                "    var jsonData = pm.response.json();",
+                "    pm.expect(jsonData).to.have.property('summary');",
+                "    pm.expect(jsonData.summary).to.be.a('string');",
+                "    pm.expect(jsonData.summary.length).to.be.greaterThan(0);",
+                "});"
                 ],
                 "type": "text/javascript"
               }
@@ -72,7 +79,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"action\": \"process_pdf\",\n    \"file_id\": \"test-file-uuid-123\",\n    \"signed_url\": \"your-s3-signed-url-or-s3-key\"\n}"
+              "raw": "{\n    \"action\": \"process_pdf\",\n    \"file_id\": \"test-file-uuid-123\",\n    \"signed_url\": \"https://your-bucket.s3.amazonaws.com/path/to/file.pdf?X-Amz-Algorithm=...\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/pdf-processor",
