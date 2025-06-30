@@ -18,6 +18,7 @@ import {
   Video,
   Music,
   Archive,
+  MessageSquare,
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { useLogout } from "@/hooks/useAuth";
@@ -212,6 +213,11 @@ export default function ReportsPage(): JSX.Element {
     logout();
   };
 
+  const handleOpenChat = (fileId: string, fileName: string): void => {
+    const chatUrl = `/chat?fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(fileName)}`;
+    router.push(chatUrl);
+  };
+
   const handleDragOver = (e: React.DragEvent): void => {
     e.preventDefault();
   };
@@ -339,7 +345,7 @@ export default function ReportsPage(): JSX.Element {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-4 group" onClick={() => router.push("/")}>
+                <div className="flex items-center space-x-4 group cursor-pointer" onClick={() => router.push("/dashboard")}>
                   <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-blue-500/25">
                     <Heart className="w-6 h-6 text-white animate-pulse" />
                   </div>
@@ -646,6 +652,16 @@ export default function ReportsPage(): JSX.Element {
                         >
                           <Download className="w-4 h-4" />
                           <span>Download</span>
+                        </button>
+
+                        {/* Chat Button */}
+                        <button
+                          onClick={() => handleOpenChat(file.file_id, file.original_filename)}
+                          className="flex items-center justify-center px-3 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-105 text-sm font-medium"
+                          type="button"
+                          title="Chat with this document"
+                        >
+                          <MessageSquare className="w-4 h-4" />
                         </button>
 
                         <button
