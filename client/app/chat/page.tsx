@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, ReactNode, JSX } from 'react'
+import React, { useState, useEffect, ReactNode, JSX, Suspense } from 'react'
 import { 
   Heart, 
   LogOut, 
@@ -38,7 +38,26 @@ interface ChatMessage {
   isLoading?: boolean
 }
 
+// Loading component for Suspense fallback
+const PageLoading = (): JSX.Element => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center relative overflow-hidden">
+    <div className="text-center relative z-10">
+      <div className="w-16 h-16 border-4 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-white/70 text-lg">Loading...</p>
+    </div>
+  </div>
+)
+
+// Main exported component with Suspense boundary
 export default function PdfChatPage(): JSX.Element {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <PdfChatContent />
+    </Suspense>
+  )
+}
+
+function PdfChatContent(): JSX.Element {
   const { isAuthenticated } = useAuthStore()
   const logout = useLogout()
   const router = useRouter()
